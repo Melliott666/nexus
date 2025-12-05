@@ -1700,6 +1700,50 @@ namespace opticalprops {
       return mpt;
   }
 
+  // Stainles Steel Optical Properties Table no reflections
+  G4MaterialPropertiesTable * NoRef()
+  {
+      G4MaterialPropertiesTable* mpt = new G4MaterialPropertiesTable();
+
+      // Reflectivity
+      std::vector<G4double> refl_energies = {
+              optPhotMinE_, hc_ / (500. * nm), hc_ / (350. * nm),
+                            hc_ / (300. * nm), hc_ / (170. * nm),  optPhotMaxE_ };
+
+      // We assume a reflectivity of the stainless steel of 20% at VUV
+      // Measurements may be required to update these values
+      // Visible spectrum taken from: https://doi.org/10.1063/1.331503
+      std::vector<G4double> reflectivities = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+
+      // We assume that the reflectivity is mostly specular.
+      // Measurements may be required to update these values
+      // Add properties
+      mpt->AddProperty("SPECULARLOBECONSTANT", {optPhotMinE_, optPhotMaxE_}, {0., 0.});
+      mpt->AddProperty("SPECULARSPIKECONSTANT",{optPhotMinE_, optPhotMaxE_}, {0.75, 0.75});
+      mpt->AddProperty("BACKSCATTERCONSTANT",  {optPhotMinE_, optPhotMaxE_}, {0., 0.});
+      mpt->AddProperty("REFLECTIVITY", refl_energies, reflectivities);
+      // mpt->AddProperty("ABSLENGTH", refl_energies, reflectivities);
+      return mpt;
+  }
+
+  // Stainles Steel Optical Properties Table no reflections
+  G4MaterialPropertiesTable * Absorber()
+  {
+      G4MaterialPropertiesTable* mpt = new G4MaterialPropertiesTable();
+
+      // Reflectivity
+      std::vector<G4double> refl_energies = {
+              optPhotMinE_, hc_ / (500. * nm), hc_ / (350. * nm),
+                            hc_ / (300. * nm), hc_ / (170. * nm),  optPhotMaxE_ };
+
+      std::vector<G4double> reflectivities = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+      std::vector<G4double> efficiencies = { 100.0, 100.0, 100.0, 100.0, 100.0, 100.0};
+
+      mpt->AddProperty("REFLECTIVITY", refl_energies, reflectivities);
+      mpt->AddProperty("EFFICIENCY", refl_energies, efficiencies);
+      return mpt;
+  }
+
   /// Generic material, to be modifed by the user ///
   G4MaterialPropertiesTable* XXX()
   {

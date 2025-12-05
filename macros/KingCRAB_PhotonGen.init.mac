@@ -1,0 +1,27 @@
+## ----------------------------------------------------------------------------
+## nexus | KingCRAB_PhotonGen.init.mac
+##
+## Initialization macro to generate photons in KingCRAB
+##
+## The NEXT Collaboration
+## ----------------------------------------------------------------------------
+
+
+/PhysicsList/RegisterPhysics G4EmStandardPhysics_option4
+/PhysicsList/RegisterPhysics G4DecayPhysics
+/PhysicsList/RegisterPhysics G4RadioactiveDecayPhysics
+/PhysicsList/RegisterPhysics NexusPhysics
+/PhysicsList/RegisterPhysics G4StepLimiterPhysics
+/PhysicsList/RegisterPhysics G4OpticalPhysics
+
+/nexus/RegisterGeometry KingCRAB
+
+/nexus/RegisterGenerator ScintillationGenerator
+
+/nexus/RegisterPersistencyManager PersistencyManager
+
+/nexus/RegisterRunAction DefaultRunAction
+/nexus/RegisterEventAction DefaultEventAction
+/nexus/RegisterTrackingAction OpticalTrackingAction
+
+/nexus/RegisterMacro macros/KingCRAB_PhotonGen.config.mac
