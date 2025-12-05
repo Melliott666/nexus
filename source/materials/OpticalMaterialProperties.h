@@ -87,6 +87,10 @@ namespace opticalprops {
 
   G4MaterialPropertiesTable* Steel();
 
+  G4MaterialPropertiesTable* NoRef();
+
+  G4MaterialPropertiesTable* Absorber();
+
   G4MaterialPropertiesTable* XXX();
 
 
