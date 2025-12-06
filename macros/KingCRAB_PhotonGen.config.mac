@@ -14,7 +14,7 @@
 
 # GENERATION
 /Generator/ScintGenerator/region ANODE
-/Generator/ScintGenerator/nphotons 500000
+/Generator/ScintGenerator/nphotons 20000000
 #/Generator/ScintGenerator/nphotons 40000
 
 ## Nexus Physics List
