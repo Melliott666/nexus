@@ -147,7 +147,7 @@ namespace nexus{
         G4LogicalVolume* lens_logic = new G4LogicalVolume(lens_solid, Steel, "LENS"); // Set as steel for now, need to add CaF2 material properties
         
         // Set optical properties of lens
-        G4OpticalSurface* lens_opsur = new G4OpticalSurface("LENS_OPSURF", unified, polished, dielectric_metal);
+        G4OpticalSurface* lens_opsur = new G4OpticalSurface("LENS", unified, polished, dielectric_metal);
         lens_opsur->SetMaterialPropertiesTable(opticalprops::Absorber()); // 100% Quantum Efficiency
         new G4LogicalSkinSurface("LENS", lens_logic, lens_opsur);
 
