@@ -1732,15 +1732,12 @@ namespace opticalprops {
       G4MaterialPropertiesTable* mpt = new G4MaterialPropertiesTable();
 
       // Reflectivity
-      std::vector<G4double> refl_energies = {
-              optPhotMinE_, hc_ / (500. * nm), hc_ / (350. * nm),
-                            hc_ / (300. * nm), hc_ / (170. * nm),  optPhotMaxE_ };
+      std::vector<G4double> energies = {optPhotMinE_,  optPhotMaxE_ };
+      std::vector<G4double> reflectivities = { 0.0, 0.0};
+      std::vector<G4double> efficiencies   = { 1.0, 1.0};
 
-      std::vector<G4double> reflectivities = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-      std::vector<G4double> efficiencies = { 100.0, 100.0, 100.0, 100.0, 100.0, 100.0};
-
-      mpt->AddProperty("REFLECTIVITY", refl_energies, reflectivities);
-      mpt->AddProperty("EFFICIENCY", refl_energies, efficiencies);
+      mpt->AddProperty("REFLECTIVITY", energies, reflectivities);
+      mpt->AddProperty("EFFICIENCY", energies, efficiencies);
       return mpt;
   }
 

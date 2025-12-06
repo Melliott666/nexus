@@ -144,20 +144,19 @@ namespace nexus{
         G4double lens_diam = 2.54*cm; // 1 inch
         G4double lens_thick = 3*mm; // Choose arbitary for now
         G4Tubs* lens_solid = new G4Tubs("LENS", 0, lens_diam/2.0, lens_thick/2.0, 0, twopi);
-        G4LogicalVolume* lens_logic = new G4LogicalVolume(lens_solid, Steel, "LENS"); // Set as steel for now so we can change reflectivity
+        G4LogicalVolume* lens_logic = new G4LogicalVolume(lens_solid, Steel, "LENS"); // Set as steel for now, need to add CaF2 material properties
         
-        // Set optical properties
+        // Set optical properties of lens
         G4OpticalSurface* lens_opsur = new G4OpticalSurface("LENS_OPSURF", unified, polished, dielectric_metal);
-        lens_opsur->SetMaterialPropertiesTable(opticalprops::Absorber()); 
+        lens_opsur->SetMaterialPropertiesTable(opticalprops::Absorber()); // 100% Quantum Efficiency
+        new G4LogicalSkinSurface("LENS", lens_logic, lens_opsur);
 
-        // Sensitive detector
+        // Sensitive detector to store the hits
         SensorSD* lens_sd = new SensorSD("/LENS/LENS_OPSURF");
         lens_sd->SetDetectorVolumeDepth(2);
         lens_sd->SetTimeBinning(10000*ns);
         G4SDManager::GetSDMpointer()->AddNewDetector(lens_sd);
         lens_logic->SetSensitiveDetector(lens_sd);
-
-        
 
         // Place the Volumes
 
