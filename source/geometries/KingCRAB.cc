@@ -99,7 +99,7 @@ namespace nexus{
         G4Material *Steel=materials::Steel();
         Steel->SetMaterialPropertiesTable(new G4MaterialPropertiesTable());
 
-        // G4Material *Cu = G4NistManager::Instance()->FindOrBuildMaterial("G4_Cu");
+        G4Material* Cu = G4NistManager::Instance()->FindOrBuildMaterial("G4_Cu");
         G4Material* PTFE = G4NistManager::Instance()->FindOrBuildMaterial("G4_POLYETHYLENE");
 
         // --------------------------
@@ -110,6 +110,11 @@ namespace nexus{
         gas_steel_opsur->SetSigmaAlpha(0.0);
         // gas_steel_opsur->SetMaterialPropertiesTable(opticalprops::NoRef()); // No Reflections
         gas_steel_opsur->SetMaterialPropertiesTable(opticalprops::Steel()); // With Reflections
+
+        // Add optical surface of gas to copper surfaces
+        G4OpticalSurface* gas_copper_opsur = new G4OpticalSurface("GAS_COPPER_OPSURF", unified, ground, dielectric_metal);
+        gas_copper_opsur->SetSigmaAlpha(0.0);
+        gas_copper_opsur->SetMaterialPropertiesTable(opticalprops::Copper());
 
         // Optical surface gas to poly
         G4OpticalSurface* gas_poly_opsurf = new G4OpticalSurface("GAS_POLY_OPSURF", unified, ground, dielectric_metal, .01);
@@ -149,20 +154,6 @@ namespace nexus{
         G4VPhysicalVolume * flange1_phys = new G4PVPlacement(0, G4ThreeVector(0., 0.,    (vessel_length+flange_thick)/2.0 + z_shift), flange_logic, "FLANGE1", lab_logic_volume, false, 0, true);
         G4VPhysicalVolume * flange2_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., -1*(vessel_length+flange_thick)/2.0 + z_shift), flange_logic, "FLANGE2", lab_logic_volume, false, 0, true);
         new G4LogicalSkinSurface("GAS_FLANGE_OPSURF", flange_logic, gas_steel_opsur); // Reflections gas-steel flange
-
-        // --------------------------
-        // Field Cage -- Model as PTFE for now for simplicity
-        // --------------------------
-        G4double field_cage_diam = 34.3*cm;
-        G4double field_cage_length = 142.5448*cm; // Use same as vessel length for now
-        G4double field_cage_thickn = 1*cm; // Placeholder
-        G4Tubs* field_cage_solid = new G4Tubs("FIELD_CAGE", field_cage_diam/2.0, field_cage_diam/2.0+field_cage_thickn, field_cage_length/2.0, 0, twopi);
-        G4LogicalVolume* field_cage_logic = new G4LogicalVolume(field_cage_solid, Steel, "FIELD_CAGE"); // Set as steel for now so we can change reflectivity
-        
-        // Placed in the gas
-        // G4VPhysicalVolume * field_cage_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., 0.), field_cage_logic, field_cage_solid->GetName(), gas_logic, false, 0, true);
-
-        new G4LogicalSkinSurface("GAS_FIELDCAGE_OPSURF", field_cage_logic, gas_steel_opsur);
 
         // --------------------------
         // Gas Volume
@@ -213,9 +204,9 @@ namespace nexus{
         G4double mesh_thick    = 130*um;
         G4double el_gap        = 7*mm;
         
-        G4Tubs* EL_solid         = new G4Tubs("RING_SOLID", EL_ring_ID/2., EL_ring_OD/2., EL_ring_thick/2. - mesh_thick/2., 0, twopi);
-        G4LogicalVolume*anode_logic = new G4LogicalVolume(EL_solid, Steel, "ANODE_RING");
-        G4LogicalVolume*EL_logic = new G4LogicalVolume(EL_solid, Steel, "EL_RING");
+        G4Tubs*          EL_solid    = new G4Tubs("RING_SOLID", EL_ring_ID/2., EL_ring_OD/2., EL_ring_thick/2. - mesh_thick/2., 0, twopi);
+        G4LogicalVolume* anode_logic = new G4LogicalVolume(EL_solid, Steel, "ANODE_RING");
+        G4LogicalVolume* EL_logic    = new G4LogicalVolume(EL_solid, Steel, "EL_RING");
 
         // Anode and EL Ring -- placement relative to gas volume centre
         // Shift in the -/+z direction by half-mesh thickness and reduce thickness
@@ -255,21 +246,52 @@ namespace nexus{
         G4RotationMatrix* pRot = new G4RotationMatrix();
         pRot->set(Roty);
 
-        G4VPhysicalVolume * Anode_mesh = new G4PVPlacement(0, G4ThreeVector(0., 0.,  el_gap/2. + mesh_thick/2. - z_shift), EL_grid_logic, "EL_GRID_GATE",  gas_logic, false, 0, false);
-        G4VPhysicalVolume * EL_mesh = new G4PVPlacement(pRot, G4ThreeVector(0., 0., -el_gap/2. - mesh_thick/2. - z_shift), EL_grid_logic, "EL_GRID_ANODE", gas_logic, false, 1, false);
+        G4VPhysicalVolume * Anode_mesh = new G4PVPlacement(0,    G4ThreeVector(0., 0., -el_gap/2. - mesh_thick/2. - z_shift), EL_grid_logic, "EL_MESH_ANODE", gas_logic, false, 0, false);
+        G4VPhysicalVolume * EL_mesh    = new G4PVPlacement(pRot, G4ThreeVector(0., 0., +el_gap/2. + mesh_thick/2. - z_shift), EL_grid_logic, "EL_MESH_GATE",  gas_logic, false, 1, false);
 
         // --------------------------
         // Poly Wrap
         // This is the plastic that wraps around the field cage
+        // There is an error here. I think the diameter is wrongly extracted.
         // --------------------------
-        G4double poly_inner_diam = EL_ring_OD + 1*cm; // For now make it wider than EL rings till we have measurements
-        G4double poly_length = vessel_length - anode_pos; // Use same as vessel length shifted by anode pos for now
-        G4double poly_thickn = 1.5*cm; // Placeholder till measurement
+        G4double poly_inner_diam = 482.6*mm;
+        G4double poly_length = 960*mm; // Use same as vessel length shifted by anode pos for now
+        G4double poly_thickn = 6.35*mm; 
         G4Tubs*  poly_solid = new G4Tubs("POLY_WRAP", poly_inner_diam/2.0, poly_inner_diam/2.0+poly_thickn, poly_length/2.0, 0, twopi);
         G4LogicalVolume* poly_logic = new G4LogicalVolume(poly_solid, Steel, "POLY_WRAP"); // Set as steel for now so we can change reflectivity
-        G4VPhysicalVolume * poly_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., +anode_pos/2.0), poly_logic, poly_solid->GetName(), gas_logic, false, 0, true);
-        new G4LogicalSkinSurface("GAS_POLY_OPSURF", poly_logic, gas_poly_opsurf); //Reflections gas-poly
+        G4VPhysicalVolume * poly_phys = new G4PVPlacement(0, G4ThreeVector(0., 0.,  poly_length/2.0 - z_shift - el_gap/2. - mesh_thick/2. - EL_ring_thick), poly_logic, poly_solid->GetName(), gas_logic, false, 0, true);
+        new G4LogicalSkinSurface("GAS_POLY_OPSURF", poly_logic, gas_poly_opsurf); // Reflections gas-poly
 
+        // --------------------------
+        // Field Cage Rings
+        // --------------------------
+        G4double field_ring_OD = 430*mm; // outer diameter
+        G4double field_ring_thickn = 5*mm;
+        G4Tubs*  field_ring_solid = new G4Tubs("FIELD_RING", field_ring_OD/2.0 - field_ring_thickn, field_ring_OD/2.0, field_ring_thickn/2.0, 0, twopi);
+        G4LogicalVolume* field_ring_logic = new G4LogicalVolume(field_ring_solid, Steel, "FIELD_RING");
+        
+        // Positions FR closest to EL gate edge. 46mm is distance from EL gate edge to first FR centre
+        G4double field_ring_origin = 46*mm + EL_ring_thick + mesh_thick/2. + el_gap/2. - z_shift; 
+
+        G4double active_ring_sep = 24*mm; // separation between rings in active volume
+        G4double posz;
+        G4double n_active_FR = 31;
+        for (G4int i=0; i<n_active_FR; i++) {
+            posz = field_ring_origin + i*active_ring_sep;
+            new G4PVPlacement(0, G4ThreeVector(0., 0., posz), field_ring_logic, field_ring_logic->GetName(), gas_logic, false, i, true);
+        }
+
+        // Add buffer rings
+        G4double active_buffer_FR_dist = 72*mm; // Distance between last active vol field ring and buffer ring
+        G4double buffer_ring_sep = 48*mm; // separation between rings in buffer volume
+
+        for (G4int i=0; i<4; i++) {
+            posz = field_ring_origin + 30*active_ring_sep + active_buffer_FR_dist + i*buffer_ring_sep;;
+            new G4PVPlacement(0, G4ThreeVector(0., 0., posz), field_ring_logic, "FIELD_RING", gas_logic, false, i+31, false);
+        }
+
+
+        new G4LogicalSkinSurface("GAS_FIELDCAGE_OPSURF", field_ring_logic, gas_copper_opsur); // Reflections gas-copper field ring
 
         // --------------------------
         // VERTEX GENERATORS 
@@ -323,6 +345,12 @@ namespace nexus{
         LensVa->SetForceSolid(true);
         G4LogicalVolume* Lens = lvStore->GetVolume("LENS");
         Lens->SetVisAttributes(LensVa);
+
+        // Field Rings
+        G4VisAttributes *FieldRingVa=new G4VisAttributes(nexus::CopperBrownAlpha());
+        FieldRingVa->SetForceSolid(true);
+        G4LogicalVolume* FieldRing = lvStore->GetVolume("FIELD_RING");
+        FieldRing->SetVisAttributes(FieldRingVa);
 
 
         // GAS
