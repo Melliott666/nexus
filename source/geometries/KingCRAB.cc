@@ -25,6 +25,7 @@
 #include "G4UnitsTable.hh"
 #include "G4ExtrudedSolid.hh"
 #include "SensorSD.h"
+#include "HexagonMeshTools.h"
 
 #include <CLHEP/Units/SystemOfUnits.h>
 #include <CLHEP/Units/PhysicalConstants.h>
@@ -125,10 +126,7 @@ namespace nexus{
         G4LogicalVolume* field_cage_logic = new G4LogicalVolume(field_cage_solid, Steel, "FIELD_CAGE"); // Set as steel for now so we can change reflectivity
 
         // Add optical surface to the field cage
-        G4OpticalSurface* gas_FC_opsur = new G4OpticalSurface("GAS_FC_OPSURF");
-        gas_FC_opsur->SetType(dielectric_metal);
-        gas_FC_opsur->SetModel(unified);
-        gas_FC_opsur->SetFinish(ground);
+        G4OpticalSurface* gas_FC_opsur = new G4OpticalSurface("GAS_FC_OPSURF", unified, ground, dielectric_metal);
         gas_FC_opsur->SetSigmaAlpha(0.0);
         gas_FC_opsur->SetMaterialPropertiesTable(opticalprops::NoRef()); // No Reflections
         // gas_FC_opsur->SetMaterialPropertiesTable(opticalprops::Steel()); // With Reflections
@@ -158,7 +156,49 @@ namespace nexus{
         G4SDManager::GetSDMpointer()->AddNewDetector(lens_sd);
         lens_logic->SetSensitiveDetector(lens_sd);
 
+
+        // Anode and EL rings.
+        // Dim: thickness = 14mm, 382 mm inner diam, 437 mm outer diam
+        G4double EL_ring_ID    = 382*mm;
+        G4double EL_ring_OD    = 437*mm;
+        G4double EL_ring_thick = 14*mm;
+        G4double mesh_thick    = 130*um;
+        G4double el_gap        = 7*mm;
+        
+        G4Tubs* EL_solid         = new G4Tubs("RING_SOLID", EL_ring_ID/2., EL_ring_OD/2., EL_ring_thick/2. - mesh_thick/2., 0, twopi);
+        G4LogicalVolume*Anode_logic = new G4LogicalVolume(EL_solid, Steel, "ANODE_RING");
+        G4LogicalVolume*EL_logic = new G4LogicalVolume(EL_solid, Steel, "EL_RING");
+        
+
+        // EL Mesh and Grids
+        G4double EL_mesh_diam = 2.5*mm;
+
+        // Dist from centre of hex to hex vertex, excluding the land width (circumradius)
+        G4double hex_circumradius = EL_mesh_diam/std::sqrt(3)*mm;
+
+        // Total number of hexagons that would fit side-by-side along the diameter
+        G4int n_hex = (G4int) ((EL_ring_ID/2.0) / hex_circumradius);
+
+        // Define the disk to punch hexagon holes through for the mesh
+        G4Tubs* grid_solid = new G4Tubs("EL_GRID", 0., EL_ring_OD/2.0 , mesh_thick/2., 0., twopi);
+        G4LogicalVolume* EL_grid_logic = new G4LogicalVolume(grid_solid, Steel, "EL_GRID");
+
+        // Define a hexagonal prism
+        G4ExtrudedSolid* hex_prism = CreateHexagon(mesh_thick/2.0, hex_circumradius);
+        G4LogicalVolume* EL_hex_logic  = new G4LogicalVolume(hex_prism, GAS, "MESH_HEX_GAS");
+
+        // Place GXe hexagons in the disk to make the mesh
+        PlaceHexagons(n_hex, EL_mesh_diam, mesh_thick, EL_grid_logic, EL_hex_logic, EL_ring_ID);
+
+        // Add optical surface
+        G4OpticalSurface* gas_mesh_opsur = new G4OpticalSurface("GAS_EL_MESH_OPSURF", unified, ground, dielectric_metal);
+        gas_mesh_opsur->SetSigmaAlpha(0.0);
+        gas_mesh_opsur->SetMaterialPropertiesTable(opticalprops::Steel());
+        new G4LogicalSkinSurface("GAS_EL_MESH_OPSURF", EL_grid_logic, gas_mesh_opsur);
+
         // Place the Volumes
+        G4double anode_pos = 19*cm; // Distance from Anode side vessel wall -- Measured insitu
+        G4double z_shift = -1*vessel_length/2.0 + anode_pos;
 
         // LAB
         auto labPhysical= new G4PVPlacement(0,G4ThreeVector(),lab_logic_volume,lab_logic_volume->GetName(),0, false, 0, false);
@@ -174,7 +214,23 @@ namespace nexus{
         G4VPhysicalVolume * gas_phys= new G4PVPlacement(0, G4ThreeVector(0.,0.,0.), gas_logic, gas_solid->GetName(), lab_logic_volume, false, 0, true);
 
         // Field Cage -- Placed in the gas
-        G4VPhysicalVolume * field_cage_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., 0.), field_cage_logic, field_cage_solid->GetName(), gas_logic, false, 0, true);
+        // G4VPhysicalVolume * field_cage_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., 0.), field_cage_logic, field_cage_solid->GetName(), gas_logic, false, 0, true);
+
+        // Anode and EL Ring
+        // Shift in the -/+z direction by half-mesh thickness and reduce thickness
+        // by the grid thickness. The grid thickness makes up the remaining ring thickness
+        G4VPhysicalVolume * anode_ring = new G4PVPlacement(0, G4ThreeVector(0., 0., -el_gap/2.0 - mesh_thick/2. - EL_ring_thick/2.0 + z_shift), Anode_logic, "ANODE_RING", gas_logic, false, 0, true);
+        G4VPhysicalVolume * el_ring    = new G4PVPlacement(0, G4ThreeVector(0., 0., +el_gap/2.0 + mesh_thick/2. + EL_ring_thick/2.0 + z_shift), EL_logic,    "EL_RING",    gas_logic, false, 0, true);
+
+        // Anode and EL Mesh
+        // Create a rotation vector to change the orientation of the EL mesh
+        CLHEP::HepRotationZ Roty(15*deg);
+        G4RotationMatrix* pRot = new G4RotationMatrix();
+        pRot->set(Roty);
+
+        G4VPhysicalVolume * Anode_mesh = new G4PVPlacement(0, G4ThreeVector(0., 0.,  el_gap/2. + mesh_thick/2.+ z_shift), EL_grid_logic, "EL_GRID_GATE",  gas_logic, false, 0, false);
+        G4VPhysicalVolume * EL_mesh = new G4PVPlacement(pRot, G4ThreeVector(0., 0., -el_gap/2. - mesh_thick/2.+ z_shift), EL_grid_logic, "EL_GRID_ANODE", gas_logic, false, 1, false);
+
 
         // Lens -- Also placed in the gas
         // 2"(5.08 cm) shifted to right in x, 3.46" (8.7884 cm) down in y
@@ -182,7 +238,6 @@ namespace nexus{
         G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(-5.08*cm, -8.7884*cm, vessel_length/2.0-lens_thick/2.0-lens_pos), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
 
         // VERTEX GENERATORS /////////////////////////////////////
-        G4double anode_pos = 19*cm; // Distance from Anode side vessel wall -- Measured insitu
         anode_gen_          = new CylinderPointSampler(0, 10*mm, 0.5*um, 0., twopi, nullptr, G4ThreeVector (0,0,-vessel_length/2. + anode_pos));
 
         // Xenon Gas in Active Area and Non-Active Area
@@ -222,6 +277,12 @@ namespace nexus{
 
         G4LogicalVolume* Flange2 = lvStore->GetVolume("FLANGE");
         Flange2->SetVisAttributes(VesselVa);
+
+        G4LogicalVolume* EL_Gate = lvStore->GetVolume("EL_RING");
+        EL_Gate->SetVisAttributes(VesselVa);
+        
+        G4LogicalVolume* Anode = lvStore->GetVolume("ANODE_RING");
+        Anode->SetVisAttributes(VesselVa);
 
         // Field Cage
         G4VisAttributes *FieldCageVa=new G4VisAttributes(nexus::WhiteAlpha());
