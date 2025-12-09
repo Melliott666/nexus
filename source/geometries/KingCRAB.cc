@@ -128,8 +128,8 @@ namespace nexus{
         // Add optical surface to the field cage
         G4OpticalSurface* gas_FC_opsur = new G4OpticalSurface("GAS_FC_OPSURF", unified, ground, dielectric_metal);
         gas_FC_opsur->SetSigmaAlpha(0.0);
-        gas_FC_opsur->SetMaterialPropertiesTable(opticalprops::NoRef()); // No Reflections
-        // gas_FC_opsur->SetMaterialPropertiesTable(opticalprops::Steel()); // With Reflections
+        // gas_FC_opsur->SetMaterialPropertiesTable(opticalprops::NoRef()); // No Reflections
+        gas_FC_opsur->SetMaterialPropertiesTable(opticalprops::Steel()); // With Reflections
         
         new G4LogicalSkinSurface("GAS_FIELDCAGE_OPSURF", field_cage_logic, gas_FC_opsur);
         new G4LogicalSkinSurface("GAS_FIELDCAGE_OPSURF", flange_logic, gas_FC_opsur);
@@ -198,29 +198,28 @@ namespace nexus{
 
         // Place the Volumes
         G4double anode_pos = 19*cm; // Distance from Anode side vessel wall -- Measured insitu
-        G4double z_shift = -1*vessel_length/2.0 + anode_pos;
+        G4double z_shift = vessel_length/2.0 - anode_pos; // Shifts so the center of the EL gap is z=0
 
-        // LAB
-        auto labPhysical= new G4PVPlacement(0,G4ThreeVector(),lab_logic_volume,lab_logic_volume->GetName(),0, false, 0, false);
+        auto labPhysical= new G4PVPlacement(0,G4ThreeVector(), lab_logic_volume, lab_logic_volume->GetName(), 0, false, 0, false);
 
         // Vessel
-        G4VPhysicalVolume * vessel_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., 0.), vessel_logic, vessel_solid->GetName(), lab_logic_volume, false, 0, true);
+        G4VPhysicalVolume * vessel_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., z_shift), vessel_logic, vessel_solid->GetName(), lab_logic_volume, false, 0, true);
 
         // Flanges
-        G4VPhysicalVolume * flange1_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., (vessel_length+flange_thick)/2.0), flange_logic, "FLANGE1", lab_logic_volume, false, 0, true);
-        G4VPhysicalVolume * flange2_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., -1*(vessel_length+flange_thick)/2.0), flange_logic, "FLANGE2", lab_logic_volume, false, 0, true);
+        G4VPhysicalVolume * flange1_phys = new G4PVPlacement(0, G4ThreeVector(0., 0.,    (vessel_length+flange_thick)/2.0 + z_shift), flange_logic, "FLANGE1", lab_logic_volume, false, 0, true);
+        G4VPhysicalVolume * flange2_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., -1*(vessel_length+flange_thick)/2.0 + z_shift), flange_logic, "FLANGE2", lab_logic_volume, false, 0, true);
 
         // Xenon Gas
-        G4VPhysicalVolume * gas_phys= new G4PVPlacement(0, G4ThreeVector(0.,0.,0.), gas_logic, gas_solid->GetName(), lab_logic_volume, false, 0, true);
+        G4VPhysicalVolume * gas_phys= new G4PVPlacement(0, G4ThreeVector(0.,0., z_shift), gas_logic, gas_solid->GetName(), lab_logic_volume, false, 0, true);
 
         // Field Cage -- Placed in the gas
         // G4VPhysicalVolume * field_cage_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., 0.), field_cage_logic, field_cage_solid->GetName(), gas_logic, false, 0, true);
 
-        // Anode and EL Ring
+        // Anode and EL Ring -- placement relative to gas volume centre
         // Shift in the -/+z direction by half-mesh thickness and reduce thickness
         // by the grid thickness. The grid thickness makes up the remaining ring thickness
-        G4VPhysicalVolume * anode_ring = new G4PVPlacement(0, G4ThreeVector(0., 0., -el_gap/2.0 - mesh_thick/2. - EL_ring_thick/2.0 + z_shift), Anode_logic, "ANODE_RING", gas_logic, false, 0, true);
-        G4VPhysicalVolume * el_ring    = new G4PVPlacement(0, G4ThreeVector(0., 0., +el_gap/2.0 + mesh_thick/2. + EL_ring_thick/2.0 + z_shift), EL_logic,    "EL_RING",    gas_logic, false, 0, true);
+        G4VPhysicalVolume * anode_ring = new G4PVPlacement(0, G4ThreeVector(0., 0., -el_gap/2.0 - mesh_thick/2. - EL_ring_thick/2.0 - z_shift), Anode_logic, "ANODE_RING", gas_logic, false, 0, true);
+        G4VPhysicalVolume * el_ring    = new G4PVPlacement(0, G4ThreeVector(0., 0., +el_gap/2.0 + mesh_thick/2. + EL_ring_thick/2.0 - z_shift), EL_logic,    "EL_RING",    gas_logic, false, 0, true);
 
         // Anode and EL Mesh
         // Create a rotation vector to change the orientation of the EL mesh
@@ -228,17 +227,16 @@ namespace nexus{
         G4RotationMatrix* pRot = new G4RotationMatrix();
         pRot->set(Roty);
 
-        G4VPhysicalVolume * Anode_mesh = new G4PVPlacement(0, G4ThreeVector(0., 0.,  el_gap/2. + mesh_thick/2.+ z_shift), EL_grid_logic, "EL_GRID_GATE",  gas_logic, false, 0, false);
-        G4VPhysicalVolume * EL_mesh = new G4PVPlacement(pRot, G4ThreeVector(0., 0., -el_gap/2. - mesh_thick/2.+ z_shift), EL_grid_logic, "EL_GRID_ANODE", gas_logic, false, 1, false);
+        G4VPhysicalVolume * Anode_mesh = new G4PVPlacement(0, G4ThreeVector(0., 0.,  el_gap/2. + mesh_thick/2. - z_shift), EL_grid_logic, "EL_GRID_GATE",  gas_logic, false, 0, false);
+        G4VPhysicalVolume * EL_mesh = new G4PVPlacement(pRot, G4ThreeVector(0., 0., -el_gap/2. - mesh_thick/2. - z_shift), EL_grid_logic, "EL_GRID_ANODE", gas_logic, false, 1, false);
 
-
-        // Lens -- Also placed in the gas
+        // Lens -- Also placed relative to gas volume centre
         // 2"(5.08 cm) shifted to right in x, 3.46" (8.7884 cm) down in y
         G4double lens_pos = 12.5*cm; // Position of the lens relative to cathode-side end-cap
-        G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(-5.08*cm, -8.7884*cm, vessel_length/2.0-lens_thick/2.0-lens_pos), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
+        G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(-5.08*cm, -8.7884*cm, vessel_length/2.0 - lens_thick/2.0 - lens_pos), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
 
         // VERTEX GENERATORS /////////////////////////////////////
-        anode_gen_          = new CylinderPointSampler(0, 10*mm, 0.5*um, 0., twopi, nullptr, G4ThreeVector (0,0,-vessel_length/2. + anode_pos));
+        anode_gen_          = new CylinderPointSampler(0, 10*mm, 0.5*um, 0., twopi, nullptr, G4ThreeVector (0,0,0));
 
         // Xenon Gas in Active Area and Non-Active Area
         IonizationSD* gasSD = new IonizationSD("/KingCRAB/GAS");
