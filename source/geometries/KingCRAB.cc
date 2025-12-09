@@ -72,9 +72,12 @@ namespace nexus{
 
     void KingCRAB::Construct(){
 
+        // --------------------------
         // Materials
-        G4Material *GAS;
+        // --------------------------
         
+        // Setup the gas type
+        G4Material *GAS;
         if (gastype_ == "xenon"){
             std::cout << "Using Xenon! "<< gas_pressure_/bar << " bar"  << std::endl;
             GAS = materials::GXeEnriched(gas_pressure_, 293. * kelvin);
@@ -92,53 +95,88 @@ namespace nexus{
         else 
             std::cout << "Error in specified gas" << std::endl;
         
+        // Other Materials
         G4Material *Steel=materials::Steel();
         Steel->SetMaterialPropertiesTable(new G4MaterialPropertiesTable());
 
         // G4Material *Cu = G4NistManager::Instance()->FindOrBuildMaterial("G4_Cu");
         // G4Material* PTFE = G4NistManager::Instance()->FindOrBuildMaterial("G4_POLYETHYLENE");
 
-        //Constructing Lab Space
+        // --------------------------
+        // Optical Surfaces
+        // --------------------------
+        // Add optical surface of gas to steel surfaces
+        G4OpticalSurface* gas_steel_opsur = new G4OpticalSurface("GAS_STEEL_OPSURF", unified, ground, dielectric_metal);
+        gas_steel_opsur->SetSigmaAlpha(0.0);
+        // gas_steel_opsur->SetMaterialPropertiesTable(opticalprops::NoRef()); // No Reflections
+        gas_steel_opsur->SetMaterialPropertiesTable(opticalprops::Steel()); // With Reflections
+
+        // --------------------------
+        // Constructing Lab Space
+        // --------------------------
         G4String lab_name="LAB";
         G4Box * lab_solid_volume = new G4Box(lab_name,Lab_size/2.,Lab_size/2.,Lab_size/2.);
         G4LogicalVolume * lab_logic_volume= new G4LogicalVolume(lab_solid_volume,G4NistManager::Instance()->FindOrBuildMaterial("G4_AIR"),lab_name) ;
+        auto labPhysical= new G4PVPlacement(0,G4ThreeVector(), lab_logic_volume, lab_logic_volume->GetName(), 0, false, 0, false);
     
+        // --------------------------
         // Vessel cylinder
+        // --------------------------
         // Inner diameter = 19.25" = 48.9 cm, Vessel Length = 56.12" = 142.5 cm, vessel thick
         G4double vessel_diam   = 48.895*cm;
         G4double vessel_length = 142.5448*cm;
         G4double vessel_thickn = 2.54*cm;
+        G4double anode_pos = 19*cm; // Distance from Anode side vessel wall -- Measured insitu
+        G4double z_shift = vessel_length/2.0 - anode_pos; // Shifts so the center of the EL gap is z=0
+        
         G4Tubs* vessel_solid = new G4Tubs("VESSEL", vessel_diam/2.0, vessel_diam/2.0+vessel_thickn, vessel_length/2.0, 0, twopi);
         G4LogicalVolume* vessel_logic = new G4LogicalVolume(vessel_solid, Steel, "VESSEL");
+        G4VPhysicalVolume * vessel_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., z_shift), vessel_logic, vessel_solid->GetName(), lab_logic_volume, false, 0, true);
 
+        // --------------------------
         // Flanges
+        // --------------------------
         // Diameter = 28" = 71.12 cm, thickness 1"=2.54cm
         G4double flange_diam  = 71.12*cm;
         G4double flange_thick = 2.54*cm;
         G4Tubs*  flange_solid = new G4Tubs("FLANGE", 0, flange_diam/2.0, flange_thick/2.0, 0, twopi);
         G4LogicalVolume* flange_logic = new G4LogicalVolume(flange_solid, Steel, "FLANGE");
+        G4VPhysicalVolume * flange1_phys = new G4PVPlacement(0, G4ThreeVector(0., 0.,    (vessel_length+flange_thick)/2.0 + z_shift), flange_logic, "FLANGE1", lab_logic_volume, false, 0, true);
+        G4VPhysicalVolume * flange2_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., -1*(vessel_length+flange_thick)/2.0 + z_shift), flange_logic, "FLANGE2", lab_logic_volume, false, 0, true);
 
+        new G4LogicalSkinSurface("GAS_FLANGE_OPSURF", flange_logic, gas_steel_opsur);
+
+        // --------------------------
         // Field Cage -- Model as PTFE for now for simplicity
+        // --------------------------
         G4double field_cage_diam = 34.3*cm;
         G4double field_cage_length = 142.5448*cm; // Use same as vessel length for now
         G4double field_cage_thickn = 1*cm; // Placeholder
         G4Tubs* field_cage_solid = new G4Tubs("FIELD_CAGE", field_cage_diam/2.0, field_cage_diam/2.0+field_cage_thickn, field_cage_length/2.0, 0, twopi);
         G4LogicalVolume* field_cage_logic = new G4LogicalVolume(field_cage_solid, Steel, "FIELD_CAGE"); // Set as steel for now so we can change reflectivity
-
-        // Add optical surface to the field cage
-        G4OpticalSurface* gas_FC_opsur = new G4OpticalSurface("GAS_FC_OPSURF", unified, ground, dielectric_metal);
-        gas_FC_opsur->SetSigmaAlpha(0.0);
-        // gas_FC_opsur->SetMaterialPropertiesTable(opticalprops::NoRef()); // No Reflections
-        gas_FC_opsur->SetMaterialPropertiesTable(opticalprops::Steel()); // With Reflections
         
-        new G4LogicalSkinSurface("GAS_FIELDCAGE_OPSURF", field_cage_logic, gas_FC_opsur);
-        new G4LogicalSkinSurface("GAS_FIELDCAGE_OPSURF", flange_logic, gas_FC_opsur);
+        // Placed in the gas
+        // G4VPhysicalVolume * field_cage_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., 0.), field_cage_logic, field_cage_solid->GetName(), gas_logic, false, 0, true);
 
+        new G4LogicalSkinSurface("GAS_FIELDCAGE_OPSURF", field_cage_logic, gas_steel_opsur);
+
+        // --------------------------
         // Gas Volume
+        // --------------------------
         G4Tubs* gas_solid = new G4Tubs("GAS", 0, vessel_diam/2., vessel_length/2., 0, twopi);
         G4LogicalVolume* gas_logic = new G4LogicalVolume(gas_solid, GAS, "GAS");
+        G4VPhysicalVolume * gas_phys= new G4PVPlacement(0, G4ThreeVector(0.,0., z_shift), gas_logic, gas_solid->GetName(), lab_logic_volume, false, 0, true);
 
+        // Xenon Gas in Active Area and Non-Active Area
+        IonizationSD* gasSD = new IonizationSD("/KingCRAB/GAS");
+        gas_logic->SetSensitiveDetector(gasSD);
+        G4SDManager::GetSDMpointer()->AddNewDetector(gasSD);
+        gas_logic->SetUserLimits(new G4UserLimits(max_step_size_)); // Limit the step size in this volume for better tracking precision
+        this->SetLogicalVolume(lab_logic_volume);
+
+        // --------------------------
         // Lens
+        // --------------------------
         G4double lens_diam = 2.54*cm; // 1 inch
         G4double lens_thick = 3*mm; // Choose arbitary for now
         G4Tubs* lens_solid = new G4Tubs("LENS", 0, lens_diam/2.0, lens_thick/2.0, 0, twopi);
@@ -156,8 +194,14 @@ namespace nexus{
         G4SDManager::GetSDMpointer()->AddNewDetector(lens_sd);
         lens_logic->SetSensitiveDetector(lens_sd);
 
+        // Placement relative to gas volume centre
+        // 2"(5.08 cm) shifted to right in x, 3.46" (8.7884 cm) down in y
+        G4double lens_pos = 12.5*cm; // Position of the lens relative to cathode-side end-cap
+        G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(-5.08*cm, -8.7884*cm, vessel_length/2.0 - lens_thick/2.0 - lens_pos), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
 
+        // --------------------------
         // Anode and EL rings.
+        // --------------------------
         // Dim: thickness = 14mm, 382 mm inner diam, 437 mm outer diam
         G4double EL_ring_ID    = 382*mm;
         G4double EL_ring_OD    = 437*mm;
@@ -166,11 +210,21 @@ namespace nexus{
         G4double el_gap        = 7*mm;
         
         G4Tubs* EL_solid         = new G4Tubs("RING_SOLID", EL_ring_ID/2., EL_ring_OD/2., EL_ring_thick/2. - mesh_thick/2., 0, twopi);
-        G4LogicalVolume*Anode_logic = new G4LogicalVolume(EL_solid, Steel, "ANODE_RING");
+        G4LogicalVolume*anode_logic = new G4LogicalVolume(EL_solid, Steel, "ANODE_RING");
         G4LogicalVolume*EL_logic = new G4LogicalVolume(EL_solid, Steel, "EL_RING");
-        
 
+        // Anode and EL Ring -- placement relative to gas volume centre
+        // Shift in the -/+z direction by half-mesh thickness and reduce thickness
+        // by the grid thickness. The grid thickness makes up the remaining ring thickness
+        G4VPhysicalVolume * anode_ring = new G4PVPlacement(0, G4ThreeVector(0., 0., -el_gap/2.0 - mesh_thick/2. - EL_ring_thick/2.0 - z_shift), anode_logic, "ANODE_RING", gas_logic, false, 0, true);
+        G4VPhysicalVolume * el_ring    = new G4PVPlacement(0, G4ThreeVector(0., 0., +el_gap/2.0 + mesh_thick/2. + EL_ring_thick/2.0 - z_shift), EL_logic,    "EL_RING",    gas_logic, false, 0, true);
+        
+        new G4LogicalSkinSurface("GAS_ANODE_OPSURF", anode_logic, gas_steel_opsur);
+        new G4LogicalSkinSurface("GAS_EL_GATE_OPSURF", EL_logic, gas_steel_opsur);
+        
+        // --------------------------
         // EL Mesh and Grids
+        // --------------------------
         G4double EL_mesh_diam = 2.5*mm;
 
         // Dist from centre of hex to hex vertex, excluding the land width (circumradius)
@@ -190,38 +244,8 @@ namespace nexus{
         // Place GXe hexagons in the disk to make the mesh
         PlaceHexagons(n_hex, EL_mesh_diam, mesh_thick, EL_grid_logic, EL_hex_logic, EL_ring_ID);
 
-        // Add optical surface
-        G4OpticalSurface* gas_mesh_opsur = new G4OpticalSurface("GAS_EL_MESH_OPSURF", unified, ground, dielectric_metal);
-        gas_mesh_opsur->SetSigmaAlpha(0.0);
-        gas_mesh_opsur->SetMaterialPropertiesTable(opticalprops::Steel());
-        new G4LogicalSkinSurface("GAS_EL_MESH_OPSURF", EL_grid_logic, gas_mesh_opsur);
+        new G4LogicalSkinSurface("GAS_EL_MESH_OPSURF", EL_grid_logic, gas_steel_opsur);
 
-        // Place the Volumes
-        G4double anode_pos = 19*cm; // Distance from Anode side vessel wall -- Measured insitu
-        G4double z_shift = vessel_length/2.0 - anode_pos; // Shifts so the center of the EL gap is z=0
-
-        auto labPhysical= new G4PVPlacement(0,G4ThreeVector(), lab_logic_volume, lab_logic_volume->GetName(), 0, false, 0, false);
-
-        // Vessel
-        G4VPhysicalVolume * vessel_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., z_shift), vessel_logic, vessel_solid->GetName(), lab_logic_volume, false, 0, true);
-
-        // Flanges
-        G4VPhysicalVolume * flange1_phys = new G4PVPlacement(0, G4ThreeVector(0., 0.,    (vessel_length+flange_thick)/2.0 + z_shift), flange_logic, "FLANGE1", lab_logic_volume, false, 0, true);
-        G4VPhysicalVolume * flange2_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., -1*(vessel_length+flange_thick)/2.0 + z_shift), flange_logic, "FLANGE2", lab_logic_volume, false, 0, true);
-
-        // Xenon Gas
-        G4VPhysicalVolume * gas_phys= new G4PVPlacement(0, G4ThreeVector(0.,0., z_shift), gas_logic, gas_solid->GetName(), lab_logic_volume, false, 0, true);
-
-        // Field Cage -- Placed in the gas
-        // G4VPhysicalVolume * field_cage_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., 0.), field_cage_logic, field_cage_solid->GetName(), gas_logic, false, 0, true);
-
-        // Anode and EL Ring -- placement relative to gas volume centre
-        // Shift in the -/+z direction by half-mesh thickness and reduce thickness
-        // by the grid thickness. The grid thickness makes up the remaining ring thickness
-        G4VPhysicalVolume * anode_ring = new G4PVPlacement(0, G4ThreeVector(0., 0., -el_gap/2.0 - mesh_thick/2. - EL_ring_thick/2.0 - z_shift), Anode_logic, "ANODE_RING", gas_logic, false, 0, true);
-        G4VPhysicalVolume * el_ring    = new G4PVPlacement(0, G4ThreeVector(0., 0., +el_gap/2.0 + mesh_thick/2. + EL_ring_thick/2.0 - z_shift), EL_logic,    "EL_RING",    gas_logic, false, 0, true);
-
-        // Anode and EL Mesh
         // Create a rotation vector to change the orientation of the EL mesh
         CLHEP::HepRotationZ Roty(15*deg);
         G4RotationMatrix* pRot = new G4RotationMatrix();
@@ -230,25 +254,14 @@ namespace nexus{
         G4VPhysicalVolume * Anode_mesh = new G4PVPlacement(0, G4ThreeVector(0., 0.,  el_gap/2. + mesh_thick/2. - z_shift), EL_grid_logic, "EL_GRID_GATE",  gas_logic, false, 0, false);
         G4VPhysicalVolume * EL_mesh = new G4PVPlacement(pRot, G4ThreeVector(0., 0., -el_gap/2. - mesh_thick/2. - z_shift), EL_grid_logic, "EL_GRID_ANODE", gas_logic, false, 1, false);
 
-        // Lens -- Also placed relative to gas volume centre
-        // 2"(5.08 cm) shifted to right in x, 3.46" (8.7884 cm) down in y
-        G4double lens_pos = 12.5*cm; // Position of the lens relative to cathode-side end-cap
-        G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(-5.08*cm, -8.7884*cm, vessel_length/2.0 - lens_thick/2.0 - lens_pos), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
-
-        // VERTEX GENERATORS /////////////////////////////////////
+        // --------------------------
+        // VERTEX GENERATORS 
+        // --------------------------
         anode_gen_          = new CylinderPointSampler(0, 10*mm, 0.5*um, 0., twopi, nullptr, G4ThreeVector (0,0,0));
 
-        // Xenon Gas in Active Area and Non-Active Area
-        IonizationSD* gasSD = new IonizationSD("/KingCRAB/GAS");
-        gas_logic->SetSensitiveDetector(gasSD);
-        G4SDManager::GetSDMpointer()->AddNewDetector(gasSD);
-
-        /// Limit the step size in this volume for better tracking precision
-        gas_logic->SetUserLimits(new G4UserLimits(max_step_size_));
-
-
-        this->SetLogicalVolume(lab_logic_volume);
-
+        // --------------------------
+        // Visuals 
+        // --------------------------
         AssignVisuals();
 
     }
