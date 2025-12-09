@@ -290,8 +290,40 @@ namespace nexus{
             new G4PVPlacement(0, G4ThreeVector(0., 0., posz), field_ring_logic, "FIELD_RING", gas_logic, false, i+31, false);
         }
 
-
         new G4LogicalSkinSurface("GAS_FIELDCAGE_OPSURF", field_ring_logic, gas_copper_opsur); // Reflections gas-copper field ring
+
+        // --------------------------
+        // Cathode Ring
+        // --------------------------
+        // Dim: thickness = 14mm, 321 mm inner diam, 373 mm outer diam
+        G4double cathode_ring_ID    = 321*mm;
+        G4double cathode_ring_OD    = 373*mm;
+        G4double cathode_ring_thick = 14*mm;
+        
+        G4Tubs*          cathode_solid    = new G4Tubs("CATHODE_RING_SOLID", cathode_ring_ID/2., cathode_ring_OD/2., cathode_ring_thick/2. - mesh_thick/2., 0, twopi);
+        G4LogicalVolume* cathode_logic = new G4LogicalVolume(cathode_solid, Steel, "CATHODE_RING");
+
+        // Cathode Ring -- placement relative to gas volume centre
+        // G4VPhysicalVolume * cathode_ring = new G4PVPlacement(0, G4ThreeVector(0., 0., -el_gap/2.0 - mesh_thick/2. - EL_ring_thick/2.0 - z_shift), cathode_logic, "CATHODE_RING", gas_logic, false, 0, true);
+    
+        // --------------------------
+        // Cathode Mesh and Grids
+        // --------------------------
+
+        // Total number of hexagons that would fit side-by-side along the diameter
+        G4int n_hex_cathode = (G4int) ((EL_ring_ID/2.0) / hex_circumradius);
+
+        // Define the disk to punch hexagon holes through for the mesh
+        G4Tubs* cathode_grid_solid = new G4Tubs("CATHODE_GRID", 0., cathode_ring_OD/2.0 , mesh_thick/2., 0., twopi);
+        G4LogicalVolume* cathode_grid_logic = new G4LogicalVolume(cathode_grid_solid, Steel, "CATHODE_GRID");
+
+        // Place GXe hexagons in the disk to make the mesh
+        PlaceHexagons(n_hex_cathode, EL_mesh_diam, mesh_thick, cathode_grid_logic, EL_hex_logic, EL_ring_ID);
+
+        new G4LogicalSkinSurface("GAS_CATHODE_MESH_OPSURF", cathode_grid_logic, gas_steel_opsur); // Reflections gas-steel mesh
+
+        // G4VPhysicalVolume * cathode_mesh = new G4PVPlacement(0,    G4ThreeVector(0., 0., -el_gap/2. - mesh_thick/2. - z_shift), cathode_grid_logic, "CATHODE_MESH_ANODE", gas_logic, false, 0, false);
+
 
         // --------------------------
         // VERTEX GENERATORS 
