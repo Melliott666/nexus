@@ -311,14 +311,14 @@ namespace nexus{
         // --------------------------
 
         // Total number of hexagons that would fit side-by-side along the diameter
-        G4int n_hex_cathode = (G4int) ((EL_ring_ID/2.0) / hex_circumradius);
+        G4int n_hex_cathode = (G4int) ((cathode_ring_ID/2.0) / hex_circumradius);
 
         // Define the disk to punch hexagon holes through for the mesh
         G4Tubs* cathode_grid_solid = new G4Tubs("CATHODE_GRID", 0., cathode_ring_OD/2.0 , mesh_thick/2., 0., twopi);
         G4LogicalVolume* cathode_grid_logic = new G4LogicalVolume(cathode_grid_solid, Steel, "CATHODE_GRID");
 
         // Place GXe hexagons in the disk to make the mesh
-        PlaceHexagons(n_hex_cathode, EL_mesh_diam, mesh_thick, cathode_grid_logic, EL_hex_logic, EL_ring_ID);
+        PlaceHexagons(n_hex_cathode, EL_mesh_diam, mesh_thick, cathode_grid_logic, EL_hex_logic, cathode_ring_ID);
 
         new G4LogicalSkinSurface("GAS_CATHODE_MESH_OPSURF", cathode_grid_logic, gas_steel_opsur); // Reflections gas-steel mesh
 
