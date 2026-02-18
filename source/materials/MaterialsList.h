@@ -75,8 +75,11 @@ namespace materials {
   // PEEK (Polyether ether ketone)
   G4Material* PEEK();
 
-  /// Sapphire
+  // Sapphire
   G4Material* Sapphire();
+
+  // Calcium Fluoride
+  G4Material* CaF2();
 
   // Fused silica (synthetic quartz)
   G4Material* FusedSilica();

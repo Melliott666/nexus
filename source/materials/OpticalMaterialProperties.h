@@ -39,6 +39,8 @@ namespace opticalprops {
 
   G4MaterialPropertiesTable* Sapphire();
 
+  G4MaterialPropertiesTable* CaF2();
+
   G4MaterialPropertiesTable* OptCoupler();
 
   G4MaterialPropertiesTable* GAr(G4double sc_yield,
@@ -97,7 +99,11 @@ namespace opticalprops {
   constexpr G4double optPhotMinE_ =  0.2  * eV;
   constexpr G4double optPhotMaxE_ = 11.5  * eV;
   constexpr G4double optPhotFusedSilicaMaxE_ = 10.7  * eV; // formulas for fused silica are valid up to this energy
-  constexpr G4double optPhotSapphireMaxE_ = 10.3  * eV; // formulas for sapphire are valid up to this energy
+  constexpr G4double optPhotSapphireMaxE_ = 10.3  * eV; // formulas for sapphire are valid up to 6.2 eV 
+  constexpr G4double optPhotCaF2MaxE_ = 10.3 * eV; // formulas for calcium fluoride are valid up to 5.39 eV
+// Specifically the formulas say they have stability to those ranges but we need data down to the Xe scintillation light
+// so we hope that they have some additional extrapolation
+
   constexpr G4double noAbsLength_ = 1.e8  * m;
 
   constexpr G4double hc_ = h_Planck * c_light;

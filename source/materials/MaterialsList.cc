@@ -447,6 +447,27 @@ namespace materials {
   }
 
 
+  G4Material* CaF2() //Calcium Fluoride - Lens
+  {
+    G4String name = "CaF2";
+
+    // Check whether material exists already in the materials table
+    G4Material* mat = G4Material::GetMaterial(name, false);
+
+    if (mat == 0) {
+    G4NistManager* nist = G4NistManager::Instance();
+    
+    G4Element* Ca = nist->FindOrBuildElement("Ca");
+    G4Element* F = nist->FindOrBuildElement("F");
+
+    mat = new G4Material(name, 3.18*g/cm3, 2, kStateSolid);
+    mat->AddElement(Ca, 1);
+    mat->AddElement(F, 2);
+    }
+    return mat;
+    
+  }
+
 
   G4Material* FusedSilica()
   {
