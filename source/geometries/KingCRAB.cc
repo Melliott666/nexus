@@ -34,6 +34,11 @@
 #include <G4LogicalSkinSurface.hh>
 #include <G4LogicalBorderSurface.hh>
 #include "CylinderPointSampler.h"
+#include <G4Sphere.hh>
+#include <G4IntersectionSolid.hh>
+#include <G4UnionSolid.hh>
+
+
 
 
 namespace nexus{
@@ -211,8 +216,8 @@ namespace nexus{
         // Anode and EL Ring -- placement relative to gas volume centre
         // Shift in the -/+z direction by half-mesh thickness and reduce thickness
         // by the grid thickness. The grid thickness makes up the remaining ring thickness
-        G4VPhysicalVolume * anode_ring = new G4PVPlacement(0, G4ThreeVector(0., 0., -el_gap/2.0 - mesh_thick/2. - EL_ring_thick/2.0 - z_shift), anode_logic, "ANODE_RING", gas_logic, false, 0, true);
-        G4VPhysicalVolume * el_ring    = new G4PVPlacement(0, G4ThreeVector(0., 0., +el_gap/2.0 + mesh_thick/2. + EL_ring_thick/2.0 - z_shift), EL_logic,    "EL_RING",    gas_logic, false, 0, true);
+        G4VPhysicalVolume * anode_ring = new G4PVPlacement(0, G4ThreeVector(0., 0., -el_gap/2.0 - mesh_thick/2. - EL_ring_thick/2.0 -z_shift), anode_logic, "ANODE_RING", gas_logic, false, 0, true);
+        G4VPhysicalVolume * el_ring    = new G4PVPlacement(0, G4ThreeVector(0., 0., +el_gap/2.0 + mesh_thick/2. + EL_ring_thick/2.0 -z_shift), EL_logic,    "EL_RING",    gas_logic, false, 0, true);
         
         new G4LogicalSkinSurface("GAS_ANODE_OPSURF", anode_logic, gas_steel_opsur); // Reflections gas-steel anode/EL gate
         new G4LogicalSkinSurface("GAS_EL_GATE_OPSURF", EL_logic, gas_steel_opsur);
@@ -299,30 +304,171 @@ namespace nexus{
         G4double cathode_ring_ID    = 321*mm;
         G4double cathode_ring_OD    = 373*mm;
         G4double cathode_ring_thick = 14*mm;
-        
-        G4Tubs*          cathode_solid    = new G4Tubs("CATHODE_RING_SOLID", cathode_ring_ID/2., cathode_ring_OD/2., cathode_ring_thick/2. - mesh_thick/2., 0, twopi);
+
+        G4Tubs*          cathode_solid = new G4Tubs("CATHODE_RING_SOLID", cathode_ring_ID/2., cathode_ring_OD/2., cathode_ring_thick/2. - mesh_thick/2., 0, twopi);
         G4LogicalVolume* cathode_logic = new G4LogicalVolume(cathode_solid, Steel, "CATHODE_RING");
 
+        // --------------------------
+        // Cathode placement (ANCHOR TO END CAP WALL)
+        // --------------------------
+        // Cathode-side endcap wall (GAS frame)
+        G4double z_cathode_wall = +vessel_length/2.0;
+
+        // Measured from endcap wall to the OUTER mesh face (closest to wall)
+        G4double cathode_inset_face = 39*cm;
+
+        // Mesh center is half-thickness further into the detector
+        G4double z_cathode_mesh = z_cathode_wall - (cathode_inset_face + mesh_thick/2.0);
+
+
+        // Place ring so its +z face is flush with the mesh plane
+        G4double z_cathode_ring = z_cathode_mesh - (mesh_thick/2.0 + cathode_ring_thick/2.0);
+
         // Cathode Ring -- placement relative to gas volume centre
-        // G4VPhysicalVolume * cathode_ring = new G4PVPlacement(0, G4ThreeVector(0., 0., -el_gap/2.0 - mesh_thick/2. - EL_ring_thick/2.0 - z_shift), cathode_logic, "CATHODE_RING", gas_logic, false, 0, true);
-    
+        G4VPhysicalVolume* cathode_ring = new G4PVPlacement(0,G4ThreeVector(0., 0., z_cathode_ring), cathode_logic, "CATHODE_RING", gas_logic, false, 0, true);
+
         // --------------------------
         // Cathode Mesh and Grids
         // --------------------------
 
         // Total number of hexagons that would fit side-by-side along the diameter
-        G4int n_hex_cathode = (G4int) ((cathode_ring_ID/2.0) / hex_circumradius);
+        G4int n_hex_cathode = (G4int)((cathode_ring_ID/2.0) / hex_circumradius);
 
         // Define the disk to punch hexagon holes through for the mesh
-        G4Tubs* cathode_grid_solid = new G4Tubs("CATHODE_GRID", 0., cathode_ring_OD/2.0 , mesh_thick/2., 0., twopi);
+        G4Tubs* cathode_grid_solid = new G4Tubs("CATHODE_GRID", 0., cathode_ring_OD/2.0, mesh_thick/2., 0, twopi);
         G4LogicalVolume* cathode_grid_logic = new G4LogicalVolume(cathode_grid_solid, Steel, "CATHODE_GRID");
 
         // Place GXe hexagons in the disk to make the mesh
-        PlaceHexagons(n_hex_cathode, EL_mesh_diam, mesh_thick, cathode_grid_logic, EL_hex_logic, cathode_ring_ID);
+        PlaceHexagons(n_hex_cathode, EL_mesh_diam, mesh_thick,
+                      cathode_grid_logic, EL_hex_logic, cathode_ring_ID);
 
         new G4LogicalSkinSurface("GAS_CATHODE_MESH_OPSURF", cathode_grid_logic, gas_steel_opsur); // Reflections gas-steel mesh
 
-        // G4VPhysicalVolume * cathode_mesh = new G4PVPlacement(0,    G4ThreeVector(0., 0., -el_gap/2. - mesh_thick/2. - z_shift), cathode_grid_logic, "CATHODE_MESH_ANODE", gas_logic, false, 0, false);
+        // Cathode Mesh -- placement relative to gas volume centre
+        G4VPhysicalVolume* cathode_mesh = new G4PVPlacement(0, G4ThreeVector(0., 0., z_cathode_mesh), cathode_grid_logic, "CATHODE_MESH", gas_logic, false, 0, false);
+
+        // --------------------------
+        // Plastic Staves around Field Cage Rings
+        // --------------------------
+        // Stave dimensions 
+        G4double Stave_ID = 6*mm;   // inner diameter (0 -> solid rod)
+        G4double Stave_OD = 44.7*mm;  // outer diameter
+        G4double Stave_thick = (Stave_OD - Stave_ID)/2.0;
+
+        // How many staves around the cage 
+        G4int n_Staves = 11;
+
+        // Place Staves just outside the field rings but inside the poly wrap
+        G4double Stave_rpos = field_ring_OD/2.0 + Stave_OD/2.0 + 5*mm;
+
+        // Span tStaves over the full field-ring stack (active + buffer) with some margin
+        G4double z_first_FR = field_ring_origin;
+        G4double z_last_FR  = field_ring_origin + 30*active_ring_sep + active_buffer_FR_dist + 3*buffer_ring_sep;
+        G4double Stave_length = (z_last_FR - z_first_FR); 
+        G4double Stave_zpos   = (z_first_FR + z_last_FR)/2.0;
+
+        G4Tubs*  Stave_solid = new G4Tubs("STAVES", Stave_ID/2.0, Stave_OD/2.0, Stave_length/2.0, 0, twopi);
+        G4LogicalVolume* Stave_logic = new G4LogicalVolume(Stave_solid, PTFE, "STAVES");
+
+        // Place Staves evenly spaced in phi
+        for (G4int i=0; i<n_Staves; i++) {G4double phi = i*twopi/n_Staves; G4double xt = Stave_rpos*std::cos(phi); G4double yt = Stave_rpos*std::sin(phi); new G4PVPlacement(0, G4ThreeVector(xt, yt, Stave_zpos), Stave_logic, Stave_solid->GetName(), gas_logic, false, i, true);}
+
+        // --------------------------
+        // CaF2 Plano-Convex Lens (Thorlabs LA5210)
+        // --------------------------
+        G4Material* caf2_mat = materials::CaF2();
+        caf2_mat->SetMaterialPropertiesTable(opticalprops::CaF2());
+
+        // LA5210 (50.8 mm dia, f=100 mm) mechanical shape
+        G4double Lens_D  = 50.8*mm;
+        G4double Lens_R  = 43.4*mm;   // convex ROC
+        G4double Lens_tc = 11.2*mm;   // center thickness
+        G4double Lens_a  = Lens_D/2.0;
+
+        // Build lens = (blank cylinder) - (outside-of-sphere within aperture)
+        G4double Lens_zc_shift = Lens_tc/2.0 - Lens_R;
+
+        G4Tubs*   Lens_blank  = new G4Tubs("CAF2_LENS_BLANK",  0., Lens_a,   Lens_tc/2.0, 0., twopi);
+        G4Sphere* Lens_sphere = new G4Sphere("CAF2_LENS_SPHERE", 0., Lens_R, 0., twopi, 0., pi);
+        G4Tubs*   Lens_big    = new G4Tubs("CAF2_LENS_BIG",    0., Lens_a,   Lens_R,      0., twopi);
+
+
+        G4SubtractionSolid* Lens_outside = new G4SubtractionSolid("CAF2_LENS_OUTSIDE", Lens_big, Lens_sphere, 0, G4ThreeVector(0.,0.,Lens_zc_shift));
+
+        G4SubtractionSolid* Lens_solid   = new G4SubtractionSolid("CAF2_LENS_SOLID", Lens_blank, Lens_outside, 0, G4ThreeVector(0.,0.,0.));
+
+        G4LogicalVolume* Lens_logic = new G4LogicalVolume(Lens_solid, caf2_mat, "CAF2_LENS");
+
+        // --------------------------
+        // Lens placement (anchored to endcap) + ORIENTATION
+        // --------------------------
+
+        // Endcap wall position in GAS frame
+        G4double z_endcap_wall = vessel_length/2.0;
+
+        // 8 cm from endcap wall to LENS FACE (outer face nearest wall)
+        G4double lens_offset = 8.0*cm;
+
+        // Lens center position
+        G4double Lens_zpos = z_endcap_wall - (lens_offset + Lens_tc/2.0);
+
+        // Flip lens so convex side faces toward cathode (i.e. toward -z)
+        G4RotationMatrix* Lens_rot = new G4RotationMatrix();
+        Lens_rot->rotateY(180.0*deg);
+
+        new G4PVPlacement(Lens_rot, G4ThreeVector(0., 0., Lens_zpos), Lens_logic, "CAF2_LENS", gas_logic, false, 0, true);
+
+
+
+        // --------------------------
+        // 45-deg Circular Mirror (Ø50.8 mm, T=10 mm)
+        // --------------------------
+        G4double Mirror_D = 50.8*mm;
+        G4double Mirror_T = 10.0*mm;
+
+        // 5 cm from lens toward endcap (same relative spacing as before)
+        G4double Mirror_zpos = Lens_zpos + (5.0*cm);
+
+        G4Tubs* Mirror_solid = new G4Tubs("MIRROR", 0., Mirror_D/2.0, Mirror_T/2.0, 0., twopi);
+
+        G4LogicalVolume* Mirror_logic =
+            new G4LogicalVolume(Mirror_solid, Steel, "MIRROR");
+
+        // Yaw angle that rotates the old y-axis toward +x by theta.
+        G4double theta = -29.9963208064*deg; //determined by arctan 3.250/5.640
+
+        // Mirror #1 rotation
+        G4RotationMatrix* Mirror_rot = new G4RotationMatrix();
+        Mirror_rot->rotateZ(theta);        // yaw the system in x-y
+        Mirror_rot->rotateX(-45.0*deg);    // keep the 45° tilt
+
+        new G4PVPlacement(Mirror_rot, G4ThreeVector(0., 0., Mirror_zpos), Mirror_logic, "MIRROR", gas_logic, false, 0, true);
+
+        new G4LogicalSkinSurface("GAS_MIRROR_OPSURF", Mirror_logic, gas_steel_opsur);
+
+
+        // --------------------------
+        // 45-deg Circular Mirror #2 (Ø50.8 mm, T=10 mm) 5.630 in above and 3.250 in to the right of Mirror #1
+        // --------------------------
+        G4double Mirror2_xpos = -8.255*cm;
+        G4double Mirror2_ypos = 14.3002*cm;
+        G4double Mirror2_zpos = Mirror_zpos;
+
+        G4Tubs* Mirror2_solid = new G4Tubs("MIRROR2", 0., Mirror_D/2.0, Mirror_T/2.0, 0., twopi);
+
+        G4LogicalVolume* Mirror2_logic =
+            new G4LogicalVolume(Mirror2_solid, Steel, "MIRROR2");
+
+        // Mirror #2 rotation
+        G4RotationMatrix* Mirror2_rot = new G4RotationMatrix();
+        Mirror2_rot->rotateZ(theta);
+        Mirror2_rot->rotateX(-45.0*deg);
+
+        new G4PVPlacement(Mirror2_rot, G4ThreeVector(Mirror2_xpos, Mirror2_ypos, Mirror2_zpos), Mirror2_logic, "MIRROR2", gas_logic, false, 0, true);
+
+        new G4LogicalSkinSurface("GAS_MIRROR2_OPSURF", Mirror2_logic, gas_steel_opsur);
+
+                          
 
 
         // --------------------------
@@ -344,7 +490,6 @@ namespace nexus{
         // Lab
         G4LogicalVolume* Lab = lvStore->GetVolume("LAB");
         Lab->SetVisAttributes(G4VisAttributes::GetInvisible());
-
 
         // Vessel
         G4VisAttributes *VesselVa=new G4VisAttributes(nexus::TitaniumGreyAlpha());
@@ -390,6 +535,58 @@ namespace nexus{
         G4VisAttributes *GasVa=new G4VisAttributes(nexus::BlueAlpha());
         GasVa->SetForceCloud(true);
         Gas->SetVisAttributes(GasVa);
+
+        // Staves
+        G4VisAttributes *StaveVa =new G4VisAttributes(nexus::WhiteAlpha());
+        StaveVa-> SetForceSolid(true);
+        G4LogicalVolume* Tube = lvStore->GetVolume("STAVES");
+        Tube->SetVisAttributes(StaveVa);
+
+        // CaF2 Lens
+        G4VisAttributes* caf2Va = new G4VisAttributes(nexus::Blue());
+        caf2Va->SetForceSolid(true);
+        G4LogicalVolume* caf2LV = lvStore->GetVolume("CAF2_LENS");
+        caf2LV->SetVisAttributes(caf2Va);
+
+        // Mirrors 
+        G4VisAttributes* MirrorVa = new G4VisAttributes(nexus::Blue());
+        MirrorVa->SetForceSolid(true);
+
+        G4LogicalVolume* Mirror1 = lvStore->GetVolume("MIRROR");
+        if (Mirror1) Mirror1->SetVisAttributes(MirrorVa);
+
+        G4LogicalVolume* Mirror2 = lvStore->GetVolume("MIRROR2");
+        if (Mirror2) Mirror2->SetVisAttributes(MirrorVa);
+
+
+        
+        // EL Gate (bright green)
+        auto* ELVa = new G4VisAttributes(G4Colour(0.0, 1.0, 0.0, 1.0));
+        ELVa->SetForceSolid(true);
+        if (EL_Gate) EL_Gate->SetVisAttributes(ELVa);
+
+        // Anode (bright green)
+        auto* AnodeVa = new G4VisAttributes(G4Colour(0.0, 1.0, 0.0, 1.0));
+        AnodeVa->SetForceSolid(true);
+        if (Anode) Anode->SetVisAttributes(AnodeVa);
+
+        // --------------------------
+        // Cathode (bright magenta)
+        // --------------------------
+        G4VisAttributes* CathodeVa =
+            new G4VisAttributes(G4Colour(1.0, 0.0, 1.0));  // bright magenta (RGB)
+
+        CathodeVa->SetForceSolid(true);
+
+        G4LogicalVolume* CathodeRingLV = lvStore->GetVolume("CATHODE_RING");
+        if (CathodeRingLV) CathodeRingLV->SetVisAttributes(CathodeVa);
+
+        G4LogicalVolume* CathodeMeshLV = lvStore->GetVolume("CATHODE_GRID");
+        if (CathodeMeshLV) CathodeMeshLV->SetVisAttributes(CathodeVa);
+
+
+
+
 
     }
     void KingCRAB::PrintParam() {
