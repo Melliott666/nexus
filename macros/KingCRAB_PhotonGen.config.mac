@@ -13,8 +13,10 @@
 /process/em/verbose 0
 
 # GENERATION
-/Generator/ScintGenerator/region ANODE
-/Generator/ScintGenerator/nphotons 20000000
+/Generator/ScintGenerator/region AD_HOC
+/Generator/ScintGenerator/region AD_HOC
+/Geometry/KingCRAB/specific_vertex 0. 0. 0. mm
+/Generator/ScintGenerator/nphotons 2000000
 #/Generator/ScintGenerator/nphotons 40000
 
 ## Nexus Physics List
