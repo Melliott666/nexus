@@ -50,10 +50,11 @@ namespace nexus{
              GeometryBase(),
              msg_(nullptr),
              Lab_size(550. * m),
-             vtx_(0,0,0), anode_gen_(nullptr),
+             anode_gen_(nullptr),
              max_step_size_(0.1*mm), 
              gas_pressure_(1. * bar),
-             gastype_("xenon")
+             gastype_("xenon"),
+             specific_vertex_(0,0,0)
 
     {
         msg_ = new G4GenericMessenger(this, "/Geometry/KingCRAB/","Control commands of geometry of KingCRAB TPC");
@@ -65,6 +66,10 @@ namespace nexus{
 
         msg_->DeclareProperty("gastype", gastype_, "The GAS to use in the detector");
 
+
+
+        msg_->DeclarePropertyWithUnit("specific_vertex", "mm",  specific_vertex_, "Set generation vertex.");
+
     }
 
     KingCRAB::~KingCRAB()
@@ -72,6 +77,8 @@ namespace nexus{
 
         delete msg_;
         delete anode_gen_;
+
+
     }
 
 
@@ -173,31 +180,6 @@ namespace nexus{
         G4SDManager::GetSDMpointer()->AddNewDetector(gasSD);
         gas_logic->SetUserLimits(new G4UserLimits(max_step_size_)); // Limit the step size in this volume for better tracking precision
         this->SetLogicalVolume(lab_logic_volume);
-
-        // --------------------------
-        // Lens
-        // --------------------------
-        G4double lens_diam = 2.54*cm; // 1 inch
-        G4double lens_thick = 3*mm; // Choose arbitary for now
-        G4Tubs* lens_solid = new G4Tubs("LENS", 0, lens_diam/2.0, lens_thick/2.0, 0, twopi);
-        G4LogicalVolume* lens_logic = new G4LogicalVolume(lens_solid, Steel, "LENS"); // Set as steel for now, need to add CaF2 material properties
-        
-        // Set optical properties of lens
-        G4OpticalSurface* lens_opsur = new G4OpticalSurface("LENS", unified, polished, dielectric_metal);
-        lens_opsur->SetMaterialPropertiesTable(opticalprops::Absorber()); // 100% Quantum Efficiency
-        new G4LogicalSkinSurface("LENS", lens_logic, lens_opsur);
-
-        // Sensitive detector to store the hits
-        SensorSD* lens_sd = new SensorSD("/LENS/LENS_OPSURF");
-        lens_sd->SetDetectorVolumeDepth(2);
-        lens_sd->SetTimeBinning(10000*ns);
-        G4SDManager::GetSDMpointer()->AddNewDetector(lens_sd);
-        lens_logic->SetSensitiveDetector(lens_sd);
-
-        // Placement relative to gas volume centre
-        // 2"(5.08 cm) shifted to right in x, 3.46" (8.7884 cm) down in y
-        G4double lens_pos = 12.5*cm; // Position of the lens relative to cathode-side end-cap
-        G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(-5.08*cm, -8.7884*cm, vessel_length/2.0 - lens_thick/2.0 - lens_pos), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
 
         // --------------------------
         // Anode and EL rings.
@@ -347,6 +329,9 @@ namespace nexus{
         // Cathode Mesh -- placement relative to gas volume centre
         G4VPhysicalVolume* cathode_mesh = new G4PVPlacement(0, G4ThreeVector(0., 0., z_cathode_mesh), cathode_grid_logic, "CATHODE_MESH", gas_logic, false, 0, false);
 
+
+
+
         // --------------------------
         // Plastic Staves around Field Cage Rings
         // --------------------------
@@ -419,7 +404,6 @@ namespace nexus{
         new G4PVPlacement(Lens_rot, G4ThreeVector(0., 0., Lens_zpos), Lens_logic, "CAF2_LENS", gas_logic, false, 0, true);
 
 
-
         // --------------------------
         // 45-deg Circular Mirror (Ø50.8 mm, T=10 mm)
         // --------------------------
@@ -440,7 +424,7 @@ namespace nexus{
         // Mirror #1 rotation
         G4RotationMatrix* Mirror_rot = new G4RotationMatrix();
         Mirror_rot->rotateZ(theta);        // yaw the system in x-y
-        Mirror_rot->rotateX(-45.0*deg);    // keep the 45° tilt
+        Mirror_rot->rotateX(135.0*deg);    // keep the 45° tilt
 
         new G4PVPlacement(Mirror_rot, G4ThreeVector(0., 0., Mirror_zpos), Mirror_logic, "MIRROR", gas_logic, false, 0, true);
 
@@ -468,7 +452,30 @@ namespace nexus{
 
         new G4LogicalSkinSurface("GAS_MIRROR2_OPSURF", Mirror2_logic, gas_steel_opsur);
 
-                          
+                
+        // --------------------------
+        // Window (Detector)
+        // --------------------------
+        G4double lens_diam = 5.08*cm; // 2 inch
+        G4double lens_thick = 1*mm; // Choose arbitary for now
+        G4Tubs* lens_solid = new G4Tubs("LENS", 0, lens_diam/2.0, lens_thick/2.0, 0, twopi);
+        G4LogicalVolume* lens_logic = new G4LogicalVolume(lens_solid, Steel, "LENS"); // Set as steel for now, need to add CaF2 material properties
+        
+        // Set optical properties of lens
+        G4OpticalSurface* lens_opsur = new G4OpticalSurface("LENS", unified, polished, dielectric_metal);
+        lens_opsur->SetMaterialPropertiesTable(opticalprops::Absorber()); // 100% Quantum Efficiency
+        new G4LogicalSkinSurface("LENS", lens_logic, lens_opsur);
+
+        // Sensitive detector to store the hits
+        SensorSD* lens_sd = new SensorSD("/LENS/LENS_OPSURF");
+        lens_sd->SetDetectorVolumeDepth(2);
+        lens_sd->SetTimeBinning(10000*ns);
+        G4SDManager::GetSDMpointer()->AddNewDetector(lens_sd);
+        lens_logic->SetSensitiveDetector(lens_sd);
+
+        // Placement relative to gas volume centre
+        G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(Mirror2_xpos, Mirror2_ypos, vessel_length/2.0 - lens_thick/2.0), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
+
 
 
         // --------------------------
@@ -595,7 +602,7 @@ namespace nexus{
     {
             G4ThreeVector pos;
             if (region == "AD_HOC") {
-                pos = vtx_;
+                pos = specific_vertex_;
             }
             else if((region == "ANODE")){
                 pos = anode_gen_->GenerateVertex(VOLUME);
@@ -603,7 +610,7 @@ namespace nexus{
             else {
                 G4Exception("[KingCRAB]", "GenerateVertex()", JustWarning,
                             "Unknown vertex generation region. setting default region as 0,0,0");
-                pos=vtx_;
+                pos=specific_vertex_;
             }
         return pos;
     }

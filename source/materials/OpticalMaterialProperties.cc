@@ -532,12 +532,12 @@ G4MaterialPropertiesTable* CaF2()
 
     std::vector<G4double> absLength = {
       noAbsLength_, noAbsLength_,
-      3455.0  * mm,  3455.0  * mm,  3455.0  * mm,  3455.0  * mm,
-      3455.0  * mm,  3140.98 * mm,  2283.30 * mm,  1742.11 * mm,
-      437.06 * mm,   219.24 * mm,  117.773 * mm,   80.560 * mm,
-      48.071 * mm,   28.805 * mm,   17.880 * mm,   11.567 * mm,
-      7.718 * mm,    4.995 * mm,
-      4.995 * mm
+      10000*mm, 10000*mm, 10000*mm, 10000*mm,
+      10000*mm, 10000*mm, 10000*mm, 10000*mm,
+      10000*mm, 10000*mm, 7332.22*mm, 4237.59*mm,
+      3454.63*mm, 2469.49*mm, 1264.22*mm, 801.588*mm,
+      679.223*mm, 577.795*mm,
+      466.187*mm
     };
     mpt->AddProperty("ABSLENGTH", abs_energy, absLength);
 

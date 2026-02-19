@@ -26,11 +26,10 @@ namespace nexus {
             G4GenericMessenger* msg_;
             G4double Lab_size;
             G4double gas_pressure_;
-            G4ThreeVector vtx_;
-            G4ThreeVector vertex;
             G4double max_step_size_;
             CylinderPointSampler* anode_gen_;
             G4String gastype_;
+            G4ThreeVector specific_vertex_;
             
             void ConstructLab();
             void PlaceVolumes();
