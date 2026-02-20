@@ -1800,6 +1800,24 @@ G4MaterialPropertiesTable* CaF2()
       return mpt;
   }
 
+  // Perfect mirror optical surface properties: R = 1, no detection
+  G4MaterialPropertiesTable* PerfectMirror()
+  {
+    G4MaterialPropertiesTable* mpt = new G4MaterialPropertiesTable();
+
+    // Reflectivity (surface property for dielectric_metal)
+    std::vector<G4double> refl_energies = {optPhotMinE_, optPhotMaxE_};
+    std::vector<G4double> reflectivity  = {1.0, 1.0};
+    mpt->AddProperty("REFLECTIVITY", refl_energies, reflectivity);
+
+    // Efficiency (used like "detection probability" on a surface)
+    std::vector<G4double> eff_energies = {optPhotMinE_, optPhotMaxE_};
+    std::vector<G4double> efficiency  = {0.0, 0.0};
+    mpt->AddProperty("EFFICIENCY", eff_energies, efficiency);
+
+    return mpt;
+  }
+
   /// Generic material, to be modifed by the user ///
   G4MaterialPropertiesTable* XXX()
   {
