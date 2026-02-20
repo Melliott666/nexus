@@ -153,7 +153,7 @@ namespace nexus{
         G4Tubs* vessel_solid = new G4Tubs("VESSEL", vessel_diam/2.0, vessel_diam/2.0+vessel_thickn, vessel_length/2.0, 0, twopi);
         G4LogicalVolume* vessel_logic = new G4LogicalVolume(vessel_solid, Steel, "VESSEL");
         G4VPhysicalVolume * vessel_phys = new G4PVPlacement(0, G4ThreeVector(0., 0., z_shift), vessel_logic, vessel_solid->GetName(), lab_logic_volume, false, 0, true);
-        new G4LogicalSkinSurface("GAS_VESSEL_OPSURF", vessel_logic, gas_steel_opsur); // Reflections gas-steel vessle
+        new G4LogicalSkinSurface("GAS_VESSEL_OPSURF", vessel_logic, gas_steel_opsur); // Reflections gas-steel vessel
 
         // --------------------------
         // Flanges
@@ -475,6 +475,9 @@ namespace nexus{
         // VERTEX GENERATORS 
         // --------------------------
         anode_gen_          = new CylinderPointSampler(0, 10*mm, 0.5*um, 0., twopi, nullptr, G4ThreeVector (0,0,0)); // Generate in center of EL gap
+        cathode_gen_        = new CylinderPointSampler(0.0, cathode_ring_ID/2.0, 0.5*um, 0.0, twopi, nullptr, G4ThreeVector(0., 0., z_shift + z_cathode_mesh)); // Generate in center of Cathode
+        active_volume_gen_  = new CylinderPointSampler(0.0, vessel_diam/2.0, vessel_length/2.0, 0.0, twopi, nullptr, G4ThreeVector(0., 0., z_shift)); // Generate uniformly through the volume
+
 
         // --------------------------
         // Visuals 
