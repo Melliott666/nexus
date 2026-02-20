@@ -28,6 +28,8 @@ namespace nexus {
             G4double gas_pressure_;
             G4double max_step_size_;
             CylinderPointSampler* anode_gen_;
+            CylinderPointSampler* cathode_gen_;
+            CylinderPointSampler* active_volume_gen_;
             G4String gastype_;
             G4ThreeVector specific_vertex_;
             

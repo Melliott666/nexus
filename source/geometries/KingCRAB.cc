@@ -51,6 +51,8 @@ namespace nexus{
              msg_(nullptr),
              Lab_size(550. * m),
              anode_gen_(nullptr),
+             cathode_gen_(nullptr),
+             active_volume_gen_(nullptr),
              max_step_size_(0.1*mm), 
              gas_pressure_(1. * bar),
              gastype_("xenon"),
@@ -77,6 +79,8 @@ namespace nexus{
 
         delete msg_;
         delete anode_gen_;
+        delete cathode_gen_;
+        delete active_volume_gen_;
 
 
     }
@@ -469,7 +473,7 @@ namespace nexus{
         new G4LogicalSkinSurface("LENS", lens_logic, lens_opsur);
 
         // Placement relative to gas volume centre
-        G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(Mirror2_xpos, Mirror2_ypos, vessel_length/2 - lens_thick -2*mm), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
+        G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(0, 0, Lens_zpos-4*mm), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
 
         // --------------------------
         // VERTEX GENERATORS 
@@ -477,7 +481,6 @@ namespace nexus{
         anode_gen_          = new CylinderPointSampler(0, 10*mm, 0.5*um, 0., twopi, nullptr, G4ThreeVector (0,0,0)); // Generate in center of EL gap
         cathode_gen_        = new CylinderPointSampler(0.0, cathode_ring_ID/2.0, 0.5*um, 0.0, twopi, nullptr, G4ThreeVector(0., 0., z_shift + z_cathode_mesh)); // Generate in center of Cathode
         active_volume_gen_  = new CylinderPointSampler(0.0, vessel_diam/2.0, vessel_length/2.0, 0.0, twopi, nullptr, G4ThreeVector(0., 0., z_shift)); // Generate uniformly through the volume
-
 
         // --------------------------
         // Visuals 
@@ -600,6 +603,12 @@ namespace nexus{
             }
             else if((region == "ANODE")){
                 pos = anode_gen_->GenerateVertex(VOLUME);
+            }
+            else if((region == "CATHODE")){
+                pos = cathode_gen_->GenerateVertex(VOLUME);
+            }
+            else if((region == "ACTIVE")){
+                pos = active_volume_gen_->GenerateVertex(VOLUME);
             }
             else {
                 G4Exception("[KingCRAB]", "GenerateVertex()", JustWarning,
