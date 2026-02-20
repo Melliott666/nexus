@@ -93,6 +93,8 @@ namespace opticalprops {
 
   G4MaterialPropertiesTable* Absorber();
 
+  G4MaterialPropertiesTable* PerfectMirror();
+
   G4MaterialPropertiesTable* XXX();
 
 

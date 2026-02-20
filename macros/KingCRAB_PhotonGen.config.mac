@@ -14,17 +14,15 @@
 
 # GENERATION
 /Generator/ScintGenerator/region AD_HOC
-/Generator/ScintGenerator/region AD_HOC
 /Geometry/KingCRAB/specific_vertex 0. 0. 0. mm
 /Generator/ScintGenerator/nphotons 2000000
-#/Generator/ScintGenerator/nphotons 40000
 
 ## Nexus Physics List
 /PhysicsList/Nexus/clustering           false
 /PhysicsList/Nexus/drift                false
 /PhysicsList/Nexus/electroluminescence  false
 
-#GEOMETRY
+# GEOMETRY
 /Geometry/KingCRAB/gas_pressure 5. bar
 /Geometry/KingCRAB/max_step_size 1 mm
 
