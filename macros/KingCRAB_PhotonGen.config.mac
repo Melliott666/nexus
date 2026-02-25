@@ -13,9 +13,8 @@
 /process/em/verbose 0
 
 # GENERATION
-/Generator/ScintGenerator/region AD_HOC
-/Geometry/KingCRAB/specific_vertex 0. 0. 0. mm
-/Generator/ScintGenerator/nphotons 2000000
+/Generator/ScintGenerator/region PRACTICE
+/Generator/ScintGenerator/nphotons 1
 
 ## Nexus Physics List
 /PhysicsList/Nexus/clustering           false
@@ -23,7 +22,7 @@
 /PhysicsList/Nexus/electroluminescence  false
 
 # GEOMETRY
-/Geometry/KingCRAB/gas_pressure 5. bar
+/Geometry/KingCRAB/gas_pressure 5 bar
 /Geometry/KingCRAB/max_step_size 1 mm
 
 # PERSISTENCY

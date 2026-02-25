@@ -53,6 +53,7 @@ namespace nexus{
              anode_gen_(nullptr),
              cathode_gen_(nullptr),
              active_volume_gen_(nullptr),
+             practice_track_(nullptr),
              max_step_size_(0.1*mm), 
              gas_pressure_(1. * bar),
              gastype_("xenon"),
@@ -76,13 +77,11 @@ namespace nexus{
 
     KingCRAB::~KingCRAB()
     {
-
         delete msg_;
         delete anode_gen_;
         delete cathode_gen_;
         delete active_volume_gen_;
-
-
+        delete practice_track_;
     }
 
 
@@ -425,10 +424,10 @@ namespace nexus{
         new G4PVPlacement(Mirror_rot, G4ThreeVector(0., 0., Mirror_zpos),
                   Mirror_logic, "MIRROR", gas_logic, false, 0, true);
 
-        // ---- Mirror #1 optical surface: PERFECT MIRROR
+        // ---- Mirror #1 optical surface: https://www.edmundoptics.com/p/50mm-diameter-vacuum-uv-enhanced-mirror/3368/
         auto* mirror1_opsur = new G4OpticalSurface("MIRROR1_OPSURF",
                                            unified, polished, dielectric_metal);
-        mirror1_opsur->SetMaterialPropertiesTable(opticalprops::PerfectMirror());
+        mirror1_opsur->SetMaterialPropertiesTable(opticalprops::MirrorReflectivity());
 
         // Apply as skin surface (affects all faces of the solid)
         new G4LogicalSkinSurface("GAS_MIRROR1_SKIN", Mirror_logic, mirror1_opsur);
@@ -452,10 +451,10 @@ namespace nexus{
         new G4PVPlacement(Mirror2_rot, G4ThreeVector(Mirror2_xpos, Mirror2_ypos, Mirror2_zpos),
                   Mirror2_logic, "MIRROR2", gas_logic, false, 0, true);
 
-        // ---- Mirror #2 optical surface: PERFECT MIRROR
+        // ---- Mirror #2 optical surface:  
         auto* mirror2_opsur = new G4OpticalSurface("MIRROR2_OPSURF",
                                            unified, polished, dielectric_metal);
-        mirror2_opsur->SetMaterialPropertiesTable(opticalprops::PerfectMirror());
+        mirror2_opsur->SetMaterialPropertiesTable(opticalprops::MirrorReflectivity());
 
         new G4LogicalSkinSurface("GAS_MIRROR2_SKIN", Mirror2_logic, mirror2_opsur);
                 
@@ -473,14 +472,19 @@ namespace nexus{
         new G4LogicalSkinSurface("LENS", lens_logic, lens_opsur);
 
         // Placement relative to gas volume centre
-        G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(0, 0, Lens_zpos-4*mm), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
-
+        // At Window
+        //G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(Mirror2_xpos, Mirror2_ypos, vessel_length/2 - lens_thick), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
+        // At CaF2 Lens
+        G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(Mirror2_xpos, Mirror2_ypos, Lens_zpos), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
+        
         // --------------------------
         // VERTEX GENERATORS 
         // --------------------------
-        anode_gen_          = new CylinderPointSampler(0, 10*mm, 0.5*um, 0., twopi, nullptr, G4ThreeVector (0,0,0)); // Generate in center of EL gap
+        anode_gen_          = new CylinderPointSampler(0, EL_ring_ID/2, 0.5*um, 0., twopi, nullptr, G4ThreeVector (0,0,0)); // Generate in center of EL gap
         cathode_gen_        = new CylinderPointSampler(0.0, cathode_ring_ID/2.0, 0.5*um, 0.0, twopi, nullptr, G4ThreeVector(0., 0., z_shift + z_cathode_mesh)); // Generate in center of Cathode
         active_volume_gen_  = new CylinderPointSampler(0.0, vessel_diam/2.0, vessel_length/2.0, 0.0, twopi, nullptr, G4ThreeVector(0., 0., z_shift)); // Generate uniformly through the volume
+        practice_track_     = new CylinderPointSampler(0.0, 1.0*um, 10.0*mm, 0.0, twopi, nullptr, G4ThreeVector(0.,0.,0.));
+
 
         // --------------------------
         // Visuals 
@@ -609,6 +613,13 @@ namespace nexus{
             }
             else if((region == "ACTIVE")){
                 pos = active_volume_gen_->GenerateVertex(VOLUME);
+            }
+            else if((region == "PRACTICE")){
+                G4RotationMatrix rot;
+                rot.rotateY(-90.0*deg); 
+                G4ThreeVector p = practice_track_->GenerateVertex(VOLUME);
+                pos = rot * p;  
+                pos = practice_track_->GenerateVertex(VOLUME);
             }
             else {
                 G4Exception("[KingCRAB]", "GenerateVertex()", JustWarning,
