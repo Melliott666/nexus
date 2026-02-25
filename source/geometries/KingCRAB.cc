@@ -477,6 +477,20 @@ namespace nexus{
         // At CaF2 Lens
         G4VPhysicalVolume * lens_phys = new G4PVPlacement(0, G4ThreeVector(Mirror2_xpos, Mirror2_ypos, Lens_zpos), lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
         
+        // ------------------------
+        // Needle
+        // ------------------------
+
+        G4double needle_diam = 0.7mm;
+        G4double needle_length = 2.54cm;
+        G4double needle_xpos = 13.97cm;
+        G4Tubs needle_solid = new G4Tubs("NEEDLE", 0, needle_diam/2.0, needle_length/2.0, 0, twopi);
+        G4LogicalVolume* needle_logic  = new G4LogicalVolume(needle_solid, Steel, "NEEDLE_BODY");
+        G4VPhysicalVolume* needle_phys = new G4PVPlacement(0,G4ThreeVector(needle_xpos/2, 0., z_cathode_ring-needle_length/4), needle_logic, "NEEDLE_BODY", gas_logic, false, 0, true);
+
+
+
+
         // --------------------------
         // VERTEX GENERATORS 
         // --------------------------
@@ -592,6 +606,16 @@ namespace nexus{
         G4LogicalVolume* CathodeMeshLV = lvStore->GetVolume("CATHODE_GRID");
         if (CathodeMeshLV) CathodeMeshLV->SetVisAttributes(CathodeVa);
 
+
+        // ------------------------
+        // Needle (Bright Blue)
+        // ------------------------
+        G4VisAttributes* NeedleVa = 
+            new G4VisAttributes(G4Colour(0, 1.0, 2.0));  // bright blue (should be anyway)
+        NeedleVa->SetForceSolid(true);
+
+        G4LogicalVolume* needleLV  = lvStore->GetVolume("NEEDLE_BODY");
+        if (needleLV) needleLV->SetVisAttributes(NeedleVa);
 
 
 
