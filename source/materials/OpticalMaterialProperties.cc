@@ -1800,23 +1800,50 @@ G4MaterialPropertiesTable* CaF2()
       return mpt;
   }
 
-  // Perfect mirror optical surface properties: R = 1, no detection
-  G4MaterialPropertiesTable* PerfectMirror()
-  {
-    G4MaterialPropertiesTable* mpt = new G4MaterialPropertiesTable();
+  // Periscopic Mirrors https://www.edmundoptics.com/p/50mm-diameter-vacuum-uv-enhanced-mirror/3368/
+G4MaterialPropertiesTable* MirrorReflectivity()
+{
+  G4MaterialPropertiesTable* mpt = new G4MaterialPropertiesTable();
+  static const G4double wl_nm[] = {
+    124, 186, 247, 309, 370, 432, 494, 556, 617, 679,
+    740, 802, 864, 926, 987, 1049, 1110, 1172, 1234, 1295,
+    1357, 1418, 1480, 1542, 1604, 1665, 1727, 1788, 1850, 1912,
+    1973, 2035, 2097, 2158, 2220, 2282, 2343, 2405, 2466, 2528
+  };
 
-    // Reflectivity (surface property for dielectric_metal)
-    std::vector<G4double> refl_energies = {optPhotMinE_, optPhotMaxE_};
-    std::vector<G4double> reflectivity  = {1.0, 1.0};
-    mpt->AddProperty("REFLECTIVITY", refl_energies, reflectivity);
+  static const G4double R_wl[] = {
+    0.832290, 0.799592, 0.877779, 0.893290, 0.903189, 0.910437,
+    0.915101, 0.915373, 0.910208, 0.902431, 0.885707, 0.862314,
+    0.865241, 0.899030, 0.934935, 0.950649, 0.958727, 0.962652,
+    0.966931, 0.970796, 0.972657, 0.973316, 0.976122, 0.977078,
+    0.976938, 0.978912, 0.978930, 0.978947, 0.979486, 0.980409,
+    0.979433, 0.979022, 0.979155, 0.980513, 0.980629, 0.980967,
+    0.981443, 0.981540, 0.982250, 0.980730
+  };
 
-    // Efficiency (used like "detection probability" on a surface)
-    std::vector<G4double> eff_energies = {optPhotMinE_, optPhotMaxE_};
-    std::vector<G4double> efficiency  = {0.0, 0.0};
-    mpt->AddProperty("EFFICIENCY", eff_energies, efficiency);
+  constexpr size_t N = sizeof(wl_nm) / sizeof(wl_nm[0]);
+  const G4double hc_eVnm = 1239.841984;
 
-    return mpt;
+  // Reflectivity (surface property for dielectric_metal)
+  std::vector<G4double> refl_energies;
+  std::vector<G4double> reflectivity;
+  refl_energies.reserve(N);
+  reflectivity.reserve(N);
+
+  for (size_t i = N; i-- > 0; ) {
+    refl_energies.push_back((hc_eVnm / wl_nm[i]) * eV);
+    reflectivity .push_back(R_wl[i]);
   }
+
+  mpt->AddProperty("REFLECTIVITY", refl_energies, reflectivity);
+
+  // Efficiency (used like "detection probability" on a surface)
+  std::vector<G4double> eff_energies = refl_energies;
+  std::vector<G4double> efficiency(eff_energies.size(), 0.0);
+  mpt->AddProperty("EFFICIENCY", eff_energies, efficiency);
+
+  return mpt;
+}
 
   /// Generic material, to be modifed by the user ///
   G4MaterialPropertiesTable* XXX()

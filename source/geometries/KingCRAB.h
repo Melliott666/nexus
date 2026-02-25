@@ -30,6 +30,7 @@ namespace nexus {
             CylinderPointSampler* anode_gen_;
             CylinderPointSampler* cathode_gen_;
             CylinderPointSampler* active_volume_gen_;
+            CylinderPointSampler* practice_track_;
             G4String gastype_;
             G4ThreeVector specific_vertex_;
             
