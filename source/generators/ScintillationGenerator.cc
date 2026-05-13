@@ -95,10 +95,20 @@ void ScintillationGenerator::GeneratePrimaryVertex(G4Event* event)
   for ( G4int i = 0; i<nphotons_; i++)
     {
       // Generate random direction by default
-      G4ThreeVector _momentum_direction = G4RandomDirection();
+      // G4ThreeVector _momentum_direction = G4RandomDirection();
+      // G4ThreeVector _momentum_direction = G4ThreeVector(0,0,1);
+
+            // Point photons directly at the lens center
+      G4ThreeVector lens_center(0., 0., 1196 * mm);
+      G4ThreeVector _momentum_direction = (lens_center - position).unit();
+
+
+
       // Determine photon energy
       G4double sc_value = G4UniformRand()*sc_max;
-      G4double pmod = spectrum_integral->GetEnergy(sc_value);
+      // G4double pmod = spectrum_integral->GetEnergy(sc_value);
+      G4double pmod = 2e-6;
+      // std::cout << "Photon energy: " << pmod << std::endl;
       G4double px = pmod * _momentum_direction.x();
       G4double py = pmod * _momentum_direction.y();
       G4double pz = pmod * _momentum_direction.z();

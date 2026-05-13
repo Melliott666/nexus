@@ -493,7 +493,7 @@ G4MaterialPropertiesTable* CaF2()
 
     // REFRACTIVE INDEX
     G4double um2 = micrometer*micrometer;
-    G4double B[3] = {.05675888, 0.4710914, 3.8484723};
+    G4double B[3] = {.5675888, 0.4710914, 3.8484723};
     G4double C[3] = {0.0025264299876 * um2, 0.0100783328028 * um2, 1200.55597292 * um2};
     SellmeierEquation seq(B, C);
 

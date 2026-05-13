@@ -16,7 +16,7 @@
 
 /nexus/RegisterGeometry KingCRAB
 
-/nexus/RegisterGenerator ScintillationGenerator
+/nexus/RegisterGenerator SingleParticleGenerator
 
 /nexus/RegisterPersistencyManager PersistencyManager
 
