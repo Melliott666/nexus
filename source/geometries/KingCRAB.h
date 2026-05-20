@@ -39,6 +39,7 @@ class KingCRAB: public GeometryBase
 
     // Active/drift field controls
     G4bool drift_field_on_;
+    G4double drift_field_int_;
     G4double drift_v_;
     G4double drift_e_lifetime_;
 

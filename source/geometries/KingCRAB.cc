@@ -48,6 +48,7 @@
 #include <G4UnitsTable.hh>
 #include <G4UserLimits.hh>
 #include <G4VisAttributes.hh>
+#include <Randomize.hh>
 
 // Geant4 optical surfaces
 #include <G4LogicalBorderSurface.hh>
@@ -58,10 +59,60 @@
 #include <CLHEP/Units/PhysicalConstants.h>
 #include <CLHEP/Units/SystemOfUnits.h>
 
+#include <algorithm>
+#include <cmath>
+
 
 namespace nexus{
     using namespace CLHEP;
     REGISTER_CLASS(KingCRAB, GeometryBase)
+
+    class KingCRABDriftField: public UniformElectricDriftField
+    {
+      public:
+        using UniformElectricDriftField::UniformElectricDriftField;
+
+        void SetELRegion(G4double anode, G4double cathode)
+        {
+          el_anode_pos_ = anode;
+          el_cathode_pos_ = cathode;
+          el_region_set_ = true;
+        }
+
+        G4double GetTotalDriftLength() const override
+        {
+          if (LightYield() > 0. && el_region_set_)
+            return std::abs(el_cathode_pos_ - el_anode_pos_);
+
+          return UniformElectricDriftField::GetTotalDriftLength();
+        }
+
+        G4LorentzVector GeneratePointAlongDriftLine(const G4LorentzVector& origin,
+                                                    const G4LorentzVector& end) override
+        {
+          if (LightYield() <= 0. || !el_region_set_)
+            return UniformElectricDriftField::GeneratePointAlongDriftLine(origin, end);
+
+          G4double el_min = std::min(el_anode_pos_, el_cathode_pos_);
+          G4double el_max = std::max(el_anode_pos_, el_cathode_pos_);
+          G4double z = el_min + G4UniformRand() * (el_max - el_min);
+
+          G4double fraction = 0.;
+          if (end.z() != origin.z())
+            fraction = (z - origin.z()) / (end.z() - origin.z());
+
+          G4ThreeVector position = origin.vect() + fraction * (end.vect() - origin.vect());
+          position.setZ(z);
+
+          G4double time = origin.t() + fraction * (end.t() - origin.t());
+          return G4LorentzVector(position, time);
+        }
+
+      private:
+        G4bool el_region_set_ = false;
+        G4double el_anode_pos_ = 0.;
+        G4double el_cathode_pos_ = 0.;
+    };
 
 
     KingCRAB::KingCRAB():
@@ -73,10 +124,11 @@ namespace nexus{
         gastype_("xenon"),
         specific_vertex_(0., 0., 0.),
         drift_field_on_(true),
+        drift_field_int_(0.0 * kilovolt/cm),
         drift_v_(1.0 * mm/microsecond),
         drift_e_lifetime_(100. * ms),
         el_field_on_(true),
-        el_field_int_(15.0 * kilovolt/cm),
+        el_field_int_(0.0 * kilovolt/cm),
         EL_drift_v_(2.5 * mm/microsecond),
         anode_gen_(nullptr),
         cathode_gen_(nullptr),
@@ -97,6 +149,11 @@ namespace nexus{
 
         msg_->DeclareProperty("drift_field_on", drift_field_on_, "Turn drift field on/off.");
 
+        G4GenericMessenger::Command& drift_field_cmd =msg_->DeclareProperty("drift_field_intensity", drift_field_int_,"Electric field in the drift region.");
+        drift_field_cmd.SetUnitCategory("Electric field");
+        drift_field_cmd.SetParameterName("drift_field_intensity", true);
+        drift_field_cmd.SetRange("drift_field_intensity>=0.");
+
         G4GenericMessenger::Command& drift_v_cmd =msg_->DeclareProperty("drift_v", drift_v_,"The active region drift velocity.");
         drift_v_cmd.SetParameterName("drift_v", true);
         drift_v_cmd.SetRange("drift_v>=0.");
@@ -110,6 +167,7 @@ namespace nexus{
         G4GenericMessenger::Command& el_field_cmd =msg_->DeclareProperty("EL_field_intensity", el_field_int_,"Electric field in the EL region.");
         el_field_cmd.SetUnitCategory("Electric field");
         el_field_cmd.SetParameterName("EL_field_intensity", true);
+        el_field_cmd.SetRange("EL_field_intensity>=0.");
 
         G4GenericMessenger::Command& el_drift_cmd =msg_->DeclareProperty("EL_drift_v", EL_drift_v_,"The EL region drift velocity.");
         el_drift_cmd.SetParameterName("EL_drift_v", true);
@@ -307,6 +365,13 @@ namespace nexus{
 
         G4double el_gap_posZ = 0.5 * (z_anode_mesh + z_gate_mesh);
 
+        G4double z_anode_el_face_global   = z_shift + z_anode_mesh + mesh_thick/2.;
+        G4double z_gate_el_face_global    = z_shift + z_gate_mesh  - mesh_thick/2.;
+        G4double z_active_max_global      = z_shift + z_active_max;
+        G4double el_gap_posZ_global       = z_shift + el_gap_posZ;
+        G4double z_cathode_mesh_global    = z_shift + z_cathode_mesh;
+        G4double active_zpos_global       = z_shift + active_zpos;
+
 
         // --------------------------
         // EL Mesh Logic
@@ -333,14 +398,25 @@ namespace nexus{
         // Drift Field
         // CRAB0-style: attach the drift field to the full GAS logical volume.
         // The z positions still restrict the drift range, but the region root is GAS.
+        // If the EL field is enabled, this KingCRAB-local field carries charge
+        // through the EL gap and reports EL photons only over the gap length.
         // --------------------------
-        if (drift_field_on_) {
-            UniformElectricDriftField* drift_field = new UniformElectricDriftField();
+        if (drift_field_on_ && drift_field_int_ > 0.) {
+            KingCRABDriftField* drift_field = new KingCRABDriftField();
 
-            drift_field->SetCathodePosition(z_active_max);
-            drift_field->SetAnodePosition(z_gate_mesh - mesh_thick/2.);
+            drift_field->SetCathodePosition(z_active_max_global);
+            G4double drift_anode_pos =
+                (el_field_on_ && el_field_int_ > 0.) ? z_anode_el_face_global
+                                                      : z_gate_el_face_global;
+            drift_field->SetAnodePosition(drift_anode_pos);
             drift_field->SetDriftVelocity(drift_v_);
             drift_field->SetLifetime(drift_e_lifetime_);
+
+            if (el_field_on_ && el_field_int_ > 0.) {
+                G4double yield = XenonELLightYield(el_field_int_, gas_pressure_);
+                drift_field->SetLightYield(yield);
+                drift_field->SetELRegion(z_anode_el_face_global, z_gate_el_face_global);
+            }
 
             G4Region* drift_region = new G4Region("DRIFT");
             drift_region->SetUserInformation(drift_field);
@@ -358,13 +434,13 @@ namespace nexus{
 
         elgap_logic->SetUserLimits(new G4UserLimits(max_step_size_));
 
-        if (el_field_on_) {
+        if (el_field_on_ && el_field_int_ > 0.) {
             G4double yield = XenonELLightYield(el_field_int_, gas_pressure_);
 
             UniformElectricDriftField* el_field = new UniformElectricDriftField();
 
-            el_field->SetCathodePosition(z_gate_mesh - mesh_thick/2.);
-            el_field->SetAnodePosition(z_anode_mesh + mesh_thick/2.);
+            el_field->SetCathodePosition(z_gate_el_face_global);
+            el_field->SetAnodePosition(z_anode_el_face_global);
             el_field->SetDriftVelocity(EL_drift_v_);
             el_field->SetLightYield(yield);
 
@@ -536,31 +612,37 @@ namespace nexus{
 
 
         // --------------------------
-        // Detector and Image Intensifier Lens
+        // Image-Intensifier and Image-Intensifier Lens
         // --------------------------
-        G4double lens_diam = 5.08*cm;
-        G4double lens_thick = 2*mm;
+        G4double image_intensifier_diam = 5.08*cm;
+        G4double image_intensifier_thick = 2*mm;
 
-        G4Tubs* lens_solid = new G4Tubs("LENS", 0, lens_diam/2.0, lens_thick/2.0, 0, twopi);
-        G4LogicalVolume* lens_logic = new G4LogicalVolume(lens_solid, Steel, "LENS");
+        G4Tubs* image_intensifier_solid =
+            new G4Tubs("Image-Intensifier", 0, image_intensifier_diam/2.0,
+                       image_intensifier_thick/2.0, 0, twopi);
+        G4LogicalVolume* image_intensifier_logic =
+            new G4LogicalVolume(image_intensifier_solid, Steel, "Image-Intensifier");
         
-        G4OpticalSurface* lens_opsur = new G4OpticalSurface("LENS", unified, polished, dielectric_metal);
-        lens_opsur->SetMaterialPropertiesTable(opticalprops::Absorber());
-        new G4LogicalSkinSurface("LENS", lens_logic, lens_opsur);
+        G4OpticalSurface* image_intensifier_opsur =
+            new G4OpticalSurface("Image-Intensifier", unified, polished, dielectric_metal);
+        image_intensifier_opsur->SetMaterialPropertiesTable(opticalprops::Absorber());
+        new G4LogicalSkinSurface("Image-Intensifier", image_intensifier_logic, image_intensifier_opsur);
 
-        G4RotationMatrix* detRot = nullptr;
-        G4double det_zpos = 1457.4*mm - z_shift;
-        G4ThreeVector det_pos(II_xpos, II_ypos, det_zpos);
+        G4RotationMatrix* image_intensifier_rot = nullptr;
+        G4double image_intensifier_zpos = 1457.4*mm - z_shift;
+        G4ThreeVector image_intensifier_pos(II_xpos, II_ypos, image_intensifier_zpos);
 
-        new G4PVPlacement(detRot, det_pos, lens_logic, lens_solid->GetName(), gas_logic, false, 0, true);
+        new G4PVPlacement(image_intensifier_rot, image_intensifier_pos,
+                          image_intensifier_logic, image_intensifier_solid->GetName(),
+                          gas_logic, false, 0, true);
 
-        G4double II_lens_from_detector = 68.405974*mm;
-        G4double II_lens_zpos = det_zpos - II_lens_from_detector;
+        G4double II_lens_from_image_intensifier = 68.405974*mm;
+        G4double II_lens_zpos = image_intensifier_zpos - II_lens_from_image_intensifier;
 
         G4RotationMatrix* II_Lens_rot = new G4RotationMatrix();
         II_Lens_rot->rotateY(180.0*deg);
 
-        new G4PVPlacement(II_Lens_rot, G4ThreeVector(II_xpos, II_ypos, II_lens_zpos), Lens_logic, "II_FS_LENS", gas_logic, false, 1, true);
+        new G4PVPlacement(II_Lens_rot, G4ThreeVector(II_xpos, II_ypos, II_lens_zpos), Lens_logic, "Image-Intensifier-FS-Lens", gas_logic, false, 1, true);
 
 
         // ------------------------
@@ -597,9 +679,9 @@ namespace nexus{
         // --------------------------
         // Vertex Generators 
         // --------------------------
-        anode_gen_ = new CylinderPointSampler(4*mm, EL_ring_ID/2, 0.5*um, 0., twopi, nullptr, G4ThreeVector(0.,0.,el_gap_posZ));
-        cathode_gen_ = new CylinderPointSampler(0.0, cathode_ring_ID/2.0, 0.5*um, 0.0, twopi, nullptr, G4ThreeVector(0., 0., z_cathode_mesh));
-        active_volume_gen_ = new CylinderPointSampler(0.0, cathode_ring_ID/2.0, active_length/2.0, 0.0, twopi, nullptr, G4ThreeVector(0., 0., active_zpos));
+        anode_gen_ = new CylinderPointSampler(4*mm, EL_ring_ID/2, 0.5*um, 0., twopi, nullptr, G4ThreeVector(0.,0.,el_gap_posZ_global));
+        cathode_gen_ = new CylinderPointSampler(0.0, cathode_ring_ID/2.0, 0.5*um, 0.0, twopi, nullptr, G4ThreeVector(0., 0., z_cathode_mesh_global));
+        active_volume_gen_ = new CylinderPointSampler(0.0, cathode_ring_ID/2.0, active_length/2.0, 0.0, twopi, nullptr, G4ThreeVector(0., 0., active_zpos_global));
         practice_track_ = new BoxPointSampler(0, 0, 0 , 0);
 
        
@@ -643,10 +725,10 @@ namespace nexus{
         G4LogicalVolume* PolyWrap = lvStore->GetVolume("POLY_WRAP");
         if (PolyWrap) PolyWrap->SetVisAttributes(PolyWrapVa);
 
-        G4VisAttributes *LensVa=new G4VisAttributes(nexus::Red());
-        LensVa->SetForceSolid(true);
-        G4LogicalVolume* Lens = lvStore->GetVolume("LENS");
-        if (Lens) Lens->SetVisAttributes(LensVa);
+        G4VisAttributes *ImageIntensifierVa=new G4VisAttributes(nexus::Red());
+        ImageIntensifierVa->SetForceSolid(true);
+        G4LogicalVolume* ImageIntensifier = lvStore->GetVolume("Image-Intensifier");
+        if (ImageIntensifier) ImageIntensifier->SetVisAttributes(ImageIntensifierVa);
 
         G4VisAttributes *FieldRingVa=new G4VisAttributes(nexus::CopperBrownAlpha());
         FieldRingVa->SetForceSolid(true);

@@ -1,7 +1,7 @@
 ## ----------------------------------------------------------------------------
-## nexus | KingCRAB_PhotonGen.init.mac
+## nexus | KingCRAB_ElectronGen.init.mac
 ##
-## Initialization macro to generate photons in KingCRAB
+## Initialization macro to generate electrons in KingCRAB
 ##
 ## The NEXT Collaboration
 ## ----------------------------------------------------------------------------
@@ -16,11 +16,11 @@
 
 /nexus/RegisterGeometry KingCRAB
 
-/nexus/RegisterGenerator ScintillationGenerator
+/nexus/RegisterGenerator SingleParticleGenerator
 
 /nexus/RegisterPersistencyManager PersistencyManager
 
 /nexus/RegisterRunAction DefaultRunAction
 /nexus/RegisterTrackingAction OpticalTrackingAction
 
-/nexus/RegisterMacro macros/KingCRAB_PhotonGen.config.mac
+/nexus/RegisterMacro macros/KingCRAB_ElectronGen.config.mac

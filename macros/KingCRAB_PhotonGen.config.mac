@@ -1,3 +1,11 @@
+## ----------------------------------------------------------------------------
+## nexus | KingCRAB_PhotonGen.config.mac
+##
+## Configuration macro to generate photons in KingCRAB
+##
+## The NEXT Collaboration
+## ----------------------------------------------------------------------------
+
 # VERBOSITY
 /run/verbose 0
 /event/verbose 0
@@ -5,26 +13,20 @@
 /process/em/verbose 0
 
 # GENERATION
-/Generator/SingleParticle/particle e-
-/Generator/SingleParticle/min_energy 100 keV
-/Generator/SingleParticle/max_energy 100 keV
-/Generator/SingleParticle/region AD_HOC
+/Generator/ScintGenerator/region ANODE
+/Generator/ScintGenerator/nphotons 20000000
+#/Generator/ScintGenerator/nphotons 40000
 
-# Nexus Physics List
-/PhysicsList/Nexus/clustering           true
-/PhysicsList/Nexus/drift                true
-/PhysicsList/Nexus/electroluminescence  true
+## Nexus Physics List
+/PhysicsList/Nexus/clustering           false
+/PhysicsList/Nexus/drift                false
+/PhysicsList/Nexus/electroluminescence  false
 
-# GEOMETRY
-/Geometry/KingCRAB/gas_pressure 5 bar
-/Geometry/KingCRAB/max_step_size 0.1 mm
-/Geometry/KingCRAB/specific_vertex_ 0 0 0
-/Geometry/KingCRAB/EL_field_intensity 1500 kV/m
-/Geometry/KingCRAB/EL_drift_v 2.5 mm/microsecond
-/Geometry/KingCRAB/drift_v 1.0 mm/microsecond
-/Geometry/KingCRAB/drift_e_lifetime 100 ms
+#GEOMETRY
+/Geometry/KingCRAB/gas_pressure 5. bar
+/Geometry/KingCRAB/max_step_size 1 mm
 
 # PERSISTENCY
 /nexus/random_seed            9
 /nexus/persistency/start_id   0
-/nexus/persistency/output_file KingCRAB_ElectronTracks
+/nexus/persistency/output_file KingCRAB_PhotonGen
