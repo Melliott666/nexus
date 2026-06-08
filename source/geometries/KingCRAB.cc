@@ -124,7 +124,6 @@ namespace nexus{
         gastype_("xenon"),
         specific_vertex_(0., 0., 0.),
         drift_field_on_(true),
-        drift_field_int_(0.0 * kilovolt/cm),
         drift_v_(1.0 * mm/microsecond),
         drift_e_lifetime_(100. * ms),
         el_field_on_(true),
@@ -136,6 +135,13 @@ namespace nexus{
         practice_track_(nullptr)
 
     {
+
+        /// Define new categories
+        new G4UnitDefinition("kilovolt/cm","kV/cm","Electric field", kilovolt/cm);
+        new G4UnitDefinition("volt/cm","V/cm","Electric field", volt/cm);
+        new G4UnitDefinition("mm/sqrt(cm)","mm/sqrt(cm)","Diffusion", mm/sqrt(cm));
+        new G4UnitDefinition("mm/microsecond","mm/microsecond","drift velocity", mm/microsecond);
+
         msg_ = new G4GenericMessenger(this, "/Geometry/KingCRAB/","Control commands of geometry of KingCRAB TPC");
         G4GenericMessenger::Command&  Pressure_cmd =msg_->DeclarePropertyWithUnit("gas_pressure","bar",gas_pressure_,"Pressure of Gas");
         Pressure_cmd.SetParameterName("XenonPressure", false);
@@ -148,11 +154,6 @@ namespace nexus{
         msg_->DeclarePropertyWithUnit("specific_vertex_", "mm",  specific_vertex_, "Set generation vertex.");
 
         msg_->DeclareProperty("drift_field_on", drift_field_on_, "Turn drift field on/off.");
-
-        G4GenericMessenger::Command& drift_field_cmd =msg_->DeclareProperty("drift_field_intensity", drift_field_int_,"Electric field in the drift region.");
-        drift_field_cmd.SetUnitCategory("Electric field");
-        drift_field_cmd.SetParameterName("drift_field_intensity", true);
-        drift_field_cmd.SetRange("drift_field_intensity>=0.");
 
         G4GenericMessenger::Command& drift_v_cmd =msg_->DeclareProperty("drift_v", drift_v_,"The active region drift velocity.");
         drift_v_cmd.SetParameterName("drift_v", true);
@@ -172,6 +173,7 @@ namespace nexus{
         G4GenericMessenger::Command& el_drift_cmd =msg_->DeclareProperty("EL_drift_v", EL_drift_v_,"The EL region drift velocity.");
         el_drift_cmd.SetParameterName("EL_drift_v", true);
         el_drift_cmd.SetRange("EL_drift_v>=0.");
+
     }
 
 
@@ -401,7 +403,7 @@ namespace nexus{
         // If the EL field is enabled, this KingCRAB-local field carries charge
         // through the EL gap and reports EL photons only over the gap length.
         // --------------------------
-        if (drift_field_on_ && drift_field_int_ > 0.) {
+        if (drift_field_on_) {
             KingCRABDriftField* drift_field = new KingCRABDriftField();
 
             drift_field->SetCathodePosition(z_active_max_global);

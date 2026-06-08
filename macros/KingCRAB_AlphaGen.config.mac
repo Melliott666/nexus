@@ -18,9 +18,9 @@
 # GEOMETRY
 /Geometry/KingCRAB/gas_pressure 5 bar
 /Geometry/KingCRAB/max_step_size 0.5 mm
-/Geometry/KingCRAB/specific_vertex_ 0 0 4
-/Geometry/KingCRAB/drift_field_intensity 300 kV/m
-/Geometry/KingCRAB/EL_field_intensity 900 kV/m
+/Geometry/KingCRAB/specific_vertex_ 0 0 0
+/Geometry/KingCRAB/drift_field_intensity 30 kV/m
+/Geometry/KingCRAB/EL_field_intensity 90 kV/m
 /Geometry/KingCRAB/EL_drift_v 2.5 mm/microsecond
 /Geometry/KingCRAB/drift_v 1.0 mm/microsecond
 /Geometry/KingCRAB/drift_e_lifetime 100 ms
