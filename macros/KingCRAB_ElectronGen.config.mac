@@ -18,11 +18,8 @@
 # GEOMETRY
 /Geometry/KingCRAB/gas_pressure 5 bar
 /Geometry/KingCRAB/max_step_size 0.1 mm
-/Geometry/KingCRAB/specific_vertex_ 0 0 4
+/Geometry/KingCRAB/specific_vertex_ 0 0 4 mm
 /Geometry/KingCRAB/EL_field_intensity 900 kV/m
-/Geometry/KingCRAB/EL_drift_v 2.5 mm/microsecond
-/Geometry/KingCRAB/drift_v 1.0 mm/microsecond
-/Geometry/KingCRAB/drift_e_lifetime 100 ms
 
 # PERSISTENCY
 /nexus/random_seed            9

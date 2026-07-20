@@ -9,6 +9,7 @@
 /Generator/SingleParticle/min_energy 5 MeV
 /Generator/SingleParticle/max_energy 5 MeV
 /Generator/SingleParticle/region AD_HOC
+/Generator/SingleParticle/momentum 0 0 1
 
 # Nexus Physics List
 /PhysicsList/Nexus/clustering           true
@@ -18,12 +19,8 @@
 # GEOMETRY
 /Geometry/KingCRAB/gas_pressure 5 bar
 /Geometry/KingCRAB/max_step_size 0.5 mm
-/Geometry/KingCRAB/specific_vertex_ 0 0 0
-/Geometry/KingCRAB/drift_field_intensity 30 kV/m
-/Geometry/KingCRAB/EL_field_intensity 90 kV/m
-/Geometry/KingCRAB/EL_drift_v 2.5 mm/microsecond
-/Geometry/KingCRAB/drift_v 1.0 mm/microsecond
-/Geometry/KingCRAB/drift_e_lifetime 100 ms
+/Geometry/KingCRAB/specific_vertex_ 0 0 8.5 mm
+/Geometry/KingCRAB/EL_field_intensity 900 kV/m
 
 # PERSISTENCY
 /nexus/random_seed            9
