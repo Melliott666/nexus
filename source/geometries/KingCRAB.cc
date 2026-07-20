@@ -282,8 +282,13 @@ namespace nexus{
         G4double detector_hole_xpos = -8.255*cm;
         G4double detector_hole_ypos = 14.3002*cm;
 
+        // Keep Boolean boundaries separated from the gas passage. Coincident
+        // cylindrical surfaces are numerically ambiguous to the navigator and
+        // were reported as a 100 um GAS/ENDCAP_PLUS overlap.
+        G4double gas_clearance = 0.1*mm;
+
         G4Tubs* endcap_solid = new G4Tubs("ENDCAP", 0., flange_diam/2.0, endcap_thick/2.0, 0, twopi);
-        G4Tubs* detector_hole_solid = new G4Tubs("DETECTOR_ENDCAP_HOLE", 0., detector_hole_rad, endcap_thick, 0, twopi);
+        G4Tubs* detector_hole_solid = new G4Tubs("DETECTOR_ENDCAP_HOLE", 0., detector_hole_rad + gas_clearance, endcap_thick, 0, twopi);
         G4SubtractionSolid* endcap_plus_solid = new G4SubtractionSolid("ENDCAP_PLUS_WITH_HOLE", endcap_solid, detector_hole_solid, 0, G4ThreeVector(detector_hole_xpos, detector_hole_ypos, 0.));
 
         G4LogicalVolume* endcap_plus_logic  = new G4LogicalVolume(endcap_plus_solid, Steel, "ENDCAP_PLUS");
@@ -315,16 +320,17 @@ namespace nexus{
         // --------------------------
         // Gas Volume
         // --------------------------
-        G4double gas_overlap = 0.1*mm;
-
         G4Tubs* gas_main_solid = new G4Tubs("GAS_MAIN", 0, vessel_IR, vessel_length/2.0 + flange_thick, 0, twopi);
-        G4Tubs* detector_hole_gas_solid = new G4Tubs("DETECTOR_ENDCAP_HOLE_GAS_SOLID", 0., detector_hole_rad, endcap_thick/2.0 + gas_overlap, 0, twopi);
+        G4Tubs* detector_hole_gas_solid = new G4Tubs("DETECTOR_ENDCAP_HOLE_GAS_SOLID", 0., detector_hole_rad, endcap_thick/2.0 + gas_clearance, 0, twopi);
 
         G4double detector_hole_gas_zpos = z_vessel_plus_end + flange_thick + endcap_thick/2.0 - z_shift;
 
         G4UnionSolid* gas_plus_hole_solid = new G4UnionSolid("GAS_PLUS_DETECTOR_HOLE", gas_main_solid, detector_hole_gas_solid, 0, G4ThreeVector(detector_hole_xpos, detector_hole_ypos, detector_hole_gas_zpos));
 
-        G4Tubs* II_gas_solid = new G4Tubs("II_REGION_GAS_SOLID", 0., II_IR, II_length/2.0 + gas_overlap, 0, twopi);
+        // The endcap-hole gas already reaches 100 um into this section, so no
+        // extension is needed here. Ending at II_length/2 keeps the gas flush
+        // with, rather than inside, II_REGION_ENDCAP.
+        G4Tubs* II_gas_solid = new G4Tubs("II_REGION_GAS_SOLID", 0., II_IR, II_length/2.0, 0, twopi);
         G4double II_gas_zpos = II_zpos - z_shift;
 
         G4UnionSolid* gas_solid = new G4UnionSolid("GAS", gas_plus_hole_solid, II_gas_solid, 0, G4ThreeVector(II_xpos, II_ypos, II_gas_zpos));
@@ -578,10 +584,22 @@ namespace nexus{
         // --------------------------
         G4double Mirror_D = 50.8*mm;
         G4double Mirror_T = .01*mm;
+        // Add a narrow fully absorbing collar around the reflective edge to
+        // catch grazing photons without materially enlarging the mirror.
+        G4double mirror_baffle_width = 1.*mm;
+        G4double mirror_baffle_OD = Mirror_D + 2.*mirror_baffle_width;
         G4double Mirror_zpos = Lens_zpos + (6.67*cm);
 
         G4Tubs* Mirror_solid = new G4Tubs("MIRROR", 0., Mirror_D/2.0, Mirror_T/2.0, 0., twopi);
         G4LogicalVolume* Mirror_logic = new G4LogicalVolume(Mirror_solid, Steel, "MIRROR");
+
+        G4Tubs* mirror_baffle_solid =
+            new G4Tubs("MIRROR_BAFFLE", Mirror_D/2.0,
+                       mirror_baffle_OD/2.0, Mirror_T/2.0, 0., twopi);
+        G4LogicalVolume* mirror_baffle_logic =
+            new G4LogicalVolume(mirror_baffle_solid, Steel, "MIRROR_BAFFLE");
+        new G4LogicalSkinSurface("GAS_MIRROR_BAFFLE_SKIN",
+                                 mirror_baffle_logic, gas_steel_opsur);
 
         G4double theta = -29.9963208064*deg;
 
@@ -590,6 +608,9 @@ namespace nexus{
         Mirror_rot->rotateX(135.0*deg);
 
         new G4PVPlacement(Mirror_rot, G4ThreeVector(0., 0., Mirror_zpos), Mirror_logic, "MIRROR", gas_logic, false, 0, true);
+        new G4PVPlacement(Mirror_rot, G4ThreeVector(0., 0., Mirror_zpos),
+                          mirror_baffle_logic, "MIRROR1_BAFFLE",
+                          gas_logic, false, 0, true);
 
         auto* mirror1_opsur = new G4OpticalSurface("MIRROR1_OPSURF", unified, polished, dielectric_metal);
         mirror1_opsur->SetMaterialPropertiesTable(opticalprops::MirrorReflectivity());
@@ -607,6 +628,10 @@ namespace nexus{
         Mirror2_rot->rotateX(-45.0*deg);
 
         new G4PVPlacement(Mirror2_rot, G4ThreeVector(Mirror2_xpos, Mirror2_ypos, Mirror2_zpos), Mirror2_logic, "MIRROR2", gas_logic, false, 0, true);
+        new G4PVPlacement(Mirror2_rot,
+                          G4ThreeVector(Mirror2_xpos, Mirror2_ypos, Mirror2_zpos),
+                          mirror_baffle_logic, "MIRROR2_BAFFLE",
+                          gas_logic, false, 1, true);
 
         auto* mirror2_opsur = new G4OpticalSurface("MIRROR2_OPSURF", unified, polished, dielectric_metal);
         mirror2_opsur->SetMaterialPropertiesTable(opticalprops::MirrorReflectivity());
@@ -766,6 +791,11 @@ namespace nexus{
 
         G4LogicalVolume* Mirror2 = lvStore->GetVolume("MIRROR2");
         if (Mirror2) Mirror2->SetVisAttributes(MirrorVa);
+
+        G4VisAttributes* MirrorBaffleVa = new G4VisAttributes(nexus::Red());
+        MirrorBaffleVa->SetForceSolid(true);
+        G4LogicalVolume* MirrorBaffle = lvStore->GetVolume("MIRROR_BAFFLE");
+        if (MirrorBaffle) MirrorBaffle->SetVisAttributes(MirrorBaffleVa);
 
         auto* ELVa = new G4VisAttributes(G4Colour(0.0, 1.0, 0.0, 1.0));
         ELVa->SetForceSolid(true);
