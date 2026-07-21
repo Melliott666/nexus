@@ -17,8 +17,8 @@
 /Geometry/KingCRAB/specific_vertex_ 0 -231 1250 mm
 /Geometry/KingCRAB/EL_field_intensity 900 kV/m
 /Generator/SingleParticle/particle gamma
-/Generator/SingleParticle/min_energy 80 keV
-/Generator/SingleParticle/max_energy 80 keV
+/Generator/SingleParticle/min_energy 356 keV
+/Generator/SingleParticle/max_energy 356 keV
 
 ## Nexus Physics List
 /PhysicsList/Nexus/clustering           true

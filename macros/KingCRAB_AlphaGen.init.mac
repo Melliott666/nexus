@@ -22,5 +22,6 @@
 
 /nexus/RegisterRunAction DefaultRunAction
 /nexus/RegisterTrackingAction OpticalTrackingAction
+/nexus/RegisterSteppingAction KillLensFresnelReflections
 
 /nexus/RegisterMacro macros/KingCRAB_AlphaGen.config.mac
