@@ -27,7 +27,7 @@
 # crossings into the absorbing image-intensifier disk, then stop those photons.
 # Compare this output with an otherwise identical run using `false` below.
 /Actions/SaveAllSteppingAction/select_particle opticalphoton
-/Actions/SaveAllSteppingAction/select_volume Image-Intensifier
+/Actions/SaveAllSteppingAction/select_volume II_PHOTOCATHODE
 /Actions/SaveAllSteppingAction/kill_lens_fresnel_reflections true
 /Actions/SaveAllSteppingAction/kill_after_selection true
 

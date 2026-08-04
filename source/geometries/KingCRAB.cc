@@ -689,7 +689,7 @@ namespace nexus{
 
         new G4PVPlacement(image_intensifier_rot, image_intensifier_pos,
                           image_intensifier_logic,
-                          image_intensifier_solid->GetName(),
+                          "II_PHOTOCATHODE",
                           gas_logic, false, 0, true);
 
         G4double II_lens_from_image_intensifier = 68.405974*mm;
