@@ -22,17 +22,19 @@
 /Geometry/KingCRAB/specific_vertex_ 0 0 8.5 mm
 /Geometry/KingCRAB/EL_field_intensity 900 kV/m
 
-# TEMPORARY FOCAL-SCAN TEST
-# Store optical-photon steps involving the transparent FOCAL_SCAN cylinder and
-# allow every selected photon to continue propagating.
+# FRESNEL-REFLECTION HYPOTHESIS TEST
+# Remove photons that Fresnel-reflect at either fused-silica lens. Store only
+# crossings into the absorbing image-intensifier disk, then stop those photons.
+# Compare this output with an otherwise identical run using `false` below.
 /Actions/SaveAllSteppingAction/select_particle opticalphoton
-/Actions/SaveAllSteppingAction/select_volume FOCAL_SCAN
-/Actions/SaveAllSteppingAction/kill_after_selection false
+/Actions/SaveAllSteppingAction/select_volume Image-Intensifier
+/Actions/SaveAllSteppingAction/kill_lens_fresnel_reflections true
+/Actions/SaveAllSteppingAction/kill_after_selection true
 
 # PERSISTENCY
 /nexus/random_seed            9
 /nexus/persistency/start_id   0
-/nexus/persistency/output_file KingCRAB_AlphaTracks
-# The focal analysis reads /DEBUG/steps, so a potentially enormous
-# /MC/particles table is unnecessary for this temporary test.
+/nexus/persistency/output_file KingCRAB_AlphaTracks_NoLensFresnel
+# Detector hits are in /DEBUG/steps; the enormous all-photon /MC/particles
+# table is deliberately disabled.
 /nexus/persistency/save_particles false

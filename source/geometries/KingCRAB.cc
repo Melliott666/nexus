@@ -656,22 +656,27 @@ namespace nexus{
         new G4LogicalSkinSurface("Image-Intensifier", image_intensifier_logic, image_intensifier_opsur);
 
         G4RotationMatrix* image_intensifier_rot = nullptr;
-        G4double image_intensifier_zpos = 1457.4*mm - z_shift;
+        // The virtual focal scan found the compact-image focus at global
+        // z ~= 1449.4 mm. Place the upstream detector face on that plane;
+        // the G4Tubs placement coordinate is its centre.
+        G4double image_intensifier_focal_plane_global = 1449.4*mm;
+        G4double image_intensifier_zpos =
+            image_intensifier_focal_plane_global
+            + image_intensifier_thick/2.0 - z_shift;
         G4ThreeVector image_intensifier_pos(II_xpos, II_ypos, image_intensifier_zpos);
 
-        // TEMPORARY FOCAL-SCAN TEST:
-        // Keep the absorbing image-intensifier definition above for later, but
-        // do not place it during the scan. If it were placed, photons would be
-        // killed at its entrance face and could not be followed through the
-        // focal region.
-        //
-        // new G4PVPlacement(image_intensifier_rot, image_intensifier_pos,
-        //                   image_intensifier_logic,
-        //                   image_intensifier_solid->GetName(),
-        //                   gas_logic, false, 0, true);
+        new G4PVPlacement(image_intensifier_rot, image_intensifier_pos,
+                          image_intensifier_logic,
+                          image_intensifier_solid->GetName(),
+                          gas_logic, false, 0, true);
 
         G4double II_lens_from_image_intensifier = 68.405974*mm;
-        G4double II_lens_zpos = image_intensifier_zpos - II_lens_from_image_intensifier;
+        // Preserve the second-lens position used to produce the focal scan.
+        // It was originally tied to the old nominal II position, so deriving
+        // it from the newly focused detector would incorrectly move the lens.
+        G4double II_lens_nominal_II_plane_global = 1457.4*mm;
+        G4double II_lens_zpos = II_lens_nominal_II_plane_global - z_shift
+                              - II_lens_from_image_intensifier;
 
         G4RotationMatrix* II_Lens_rot = new G4RotationMatrix();
         II_Lens_rot->rotateY(180.0*deg);
@@ -687,6 +692,7 @@ namespace nexus{
         // reflect, or refract optical photons. Its only purpose is to identify
         // steps in the focal region for SaveAllSteppingAction. Crossings of any
         // desired z plane can then be interpolated from /DEBUG/steps.
+        #if 0 // TEMPORARY FOCAL-SCAN CYLINDER DISABLED; retained for later scans.
         G4double focal_scan_radius = 30.*mm;
         // Restrict the scan to the compact image's apparent focus region.
         G4double focal_scan_z_min_global = 1447.*mm;
@@ -711,6 +717,7 @@ namespace nexus{
                           G4ThreeVector(II_xpos, II_ypos, focal_scan_zpos),
                           focal_scan_logic, "FOCAL_SCAN", gas_logic,
                           false, 0, true);
+        #endif
 
 
         // ------------------------

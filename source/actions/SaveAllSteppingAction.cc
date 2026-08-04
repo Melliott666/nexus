@@ -23,9 +23,15 @@
 #include "FactoryBase.h"
 
 #include <G4Step.hh>
+#include <G4LogicalVolume.hh>
+#include <G4OpBoundaryProcess.hh>
+#include <G4OpticalPhoton.hh>
 #include <G4VPersistencyManager.hh>
 #include <G4ProcessManager.hh>
+#include <G4ProcessVector.hh>
 #include <G4ParticleTable.hh>
+#include <G4Track.hh>
+#include <G4VPhysicalVolume.hh>
 
 using namespace nexus;
 
@@ -42,7 +48,9 @@ proc_names_(),
 initial_poss_(),
 final_poss_(),
 times_(),
-kill_after_selection_(false)
+kill_after_selection_(false),
+kill_lens_fresnel_reflections_(false),
+optical_boundary_(nullptr)
 {
   msg_ = new G4GenericMessenger(this, "/Actions/SaveAllSteppingAction/");
 
@@ -55,6 +63,10 @@ kill_after_selection_(false)
 
   msg_->DeclareProperty("kill_after_selection", kill_after_selection_,
                         "Whether to kill a particle after a step has been selected");
+
+  msg_->DeclareProperty(
+    "kill_lens_fresnel_reflections", kill_lens_fresnel_reflections_,
+    "Kill optical photons Fresnel-reflected at either FS_LENS boundary");
 
   PersistencyManager* pm = dynamic_cast<PersistencyManager*>
         (G4VPersistencyManager::GetPersistencyManager());
@@ -73,6 +85,15 @@ SaveAllSteppingAction::~SaveAllSteppingAction()
 
 void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
 {
+  // This optional filter lets KingCRAB test the lens-reflection ghost
+  // hypothesis while retaining the tightly filtered /DEBUG/steps output.
+  // Nexus accepts only one user stepping action, so this cannot be run as a
+  // separate KillLensFresnelReflections action alongside this recorder.
+  if (kill_lens_fresnel_reflections_ && IsLensFresnelReflection(step)) {
+    step->GetTrack()->SetTrackStatus(fStopAndKill);
+    return;
+  }
+
   G4ParticleDefinition* pdef          = step->GetTrack()->GetDefinition();
   G4int                 track_id      = step->GetTrack()->GetTrackID();
   G4String              particle_name = pdef->GetParticleName();
@@ -108,6 +129,40 @@ void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
 
   if (kill_after_selection_)
     step->GetTrack()->SetTrackStatus(fStopAndKill);
+}
+
+
+G4bool SaveAllSteppingAction::IsLensFresnelReflection(const G4Step* step)
+{
+  G4Track* track = step->GetTrack();
+  if (track->GetDefinition() != G4OpticalPhoton::Definition()) return false;
+
+  G4StepPoint* post = step->GetPostStepPoint();
+  if (post->GetStepStatus() != fGeomBoundary) return false;
+
+  if (!optical_boundary_) {
+    G4ProcessVector* processes =
+      track->GetDefinition()->GetProcessManager()->GetProcessList();
+    for (std::size_t i = 0; i < processes->size(); ++i) {
+      optical_boundary_ =
+        dynamic_cast<G4OpBoundaryProcess*>((*processes)[i]);
+      if (optical_boundary_) break;
+    }
+  }
+
+  if (!optical_boundary_ ||
+      optical_boundary_->GetStatus() != FresnelReflection) return false;
+
+  const auto is_lens = [](const G4VPhysicalVolume* volume) {
+    return volume && volume->GetLogicalVolume()->GetName() == "FS_LENS";
+  };
+
+  const G4VPhysicalVolume* pre_volume =
+    step->GetPreStepPoint()->GetPhysicalVolume();
+  const G4VPhysicalVolume* post_volume = post->GetPhysicalVolume();
+  const G4VPhysicalVolume* next_volume = track->GetNextVolume();
+
+  return is_lens(pre_volume) || is_lens(post_volume) || is_lens(next_volume);
 }
 
 

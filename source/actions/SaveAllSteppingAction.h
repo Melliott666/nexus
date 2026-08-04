@@ -32,6 +32,7 @@
 #include <map>
 
 class G4Step;
+class G4OpBoundaryProcess;
 
 template<typename T>
 using StepContainer = std::map<std::pair<G4int, G4String>, std::vector<T>>;
@@ -66,6 +67,8 @@ namespace nexus {
     StepContainer<G4double>             times_;
 
     G4bool kill_after_selection_;
+    G4bool kill_lens_fresnel_reflections_;
+    G4OpBoundaryProcess* optical_boundary_;
 
   public:
 
@@ -84,6 +87,7 @@ namespace nexus {
     void   AddSelectedVolume  (G4String);
     G4bool        KeepVolume  (G4String&, G4String&);
     G4bool        KeepParticle(G4ParticleDefinition*);
+    G4bool        IsLensFresnelReflection(const G4Step*);
   };
 
 inline StepContainer<G4String> SaveAllSteppingAction::get_initial_volumes(){return initial_volumes_;}
