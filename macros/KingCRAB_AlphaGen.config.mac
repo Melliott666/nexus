@@ -22,6 +22,13 @@
 /Geometry/KingCRAB/specific_vertex_ 0 0 8.5 mm
 /Geometry/KingCRAB/EL_field_intensity 900 kV/m
 
+# TEMPORARY FOCAL-SCAN TEST
+# Store optical-photon steps involving the transparent FOCAL_SCAN cylinder and
+# allow every selected photon to continue propagating.
+/Actions/SaveAllSteppingAction/select_particle opticalphoton
+/Actions/SaveAllSteppingAction/select_volume FOCAL_SCAN
+/Actions/SaveAllSteppingAction/kill_after_selection false
+
 # PERSISTENCY
 /nexus/random_seed            9
 /nexus/persistency/start_id   0

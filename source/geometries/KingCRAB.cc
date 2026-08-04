@@ -659,9 +659,16 @@ namespace nexus{
         G4double image_intensifier_zpos = 1457.4*mm - z_shift;
         G4ThreeVector image_intensifier_pos(II_xpos, II_ypos, image_intensifier_zpos);
 
-        new G4PVPlacement(image_intensifier_rot, image_intensifier_pos,
-                          image_intensifier_logic, image_intensifier_solid->GetName(),
-                          gas_logic, false, 0, true);
+        // TEMPORARY FOCAL-SCAN TEST:
+        // Keep the absorbing image-intensifier definition above for later, but
+        // do not place it during the scan. If it were placed, photons would be
+        // killed at its entrance face and could not be followed through the
+        // focal region.
+        //
+        // new G4PVPlacement(image_intensifier_rot, image_intensifier_pos,
+        //                   image_intensifier_logic,
+        //                   image_intensifier_solid->GetName(),
+        //                   gas_logic, false, 0, true);
 
         G4double II_lens_from_image_intensifier = 68.405974*mm;
         G4double II_lens_zpos = image_intensifier_zpos - II_lens_from_image_intensifier;
@@ -670,6 +677,39 @@ namespace nexus{
         II_Lens_rot->rotateY(180.0*deg);
 
         new G4PVPlacement(II_Lens_rot, G4ThreeVector(II_xpos, II_ypos, II_lens_zpos), Lens_logic, "Image-Intensifier-FS-Lens", gas_logic, false, 1, true);
+
+
+        // --------------------------
+        // Temporary Transparent Focal-Scan Cylinder
+        // --------------------------
+        // This is a daughter of GAS made from the exact same GAS material. It
+        // has no optical surface or sensitive detector, so it does not absorb,
+        // reflect, or refract optical photons. Its only purpose is to identify
+        // steps in the focal region for SaveAllSteppingAction. Crossings of any
+        // desired z plane can then be interpolated from /DEBUG/steps.
+        G4double focal_scan_radius = 30.*mm;
+        G4double focal_scan_z_min_global = 1440.*mm;
+        G4double focal_scan_z_max_global = 1470.*mm;
+        G4double focal_scan_length =
+            focal_scan_z_max_global - focal_scan_z_min_global;
+        G4double focal_scan_zpos =
+            0.5 * (focal_scan_z_min_global + focal_scan_z_max_global) - z_shift;
+
+        G4Tubs* focal_scan_solid =
+            new G4Tubs("FOCAL_SCAN", 0., focal_scan_radius,
+                       focal_scan_length/2., 0., twopi);
+        G4LogicalVolume* focal_scan_logic =
+            new G4LogicalVolume(focal_scan_solid, GAS, "FOCAL_SCAN");
+
+        // Provide closely spaced straight-line samples without changing the
+        // optical physics. The analysis can use a different virtual-plane
+        // spacing by interpolating between these stored step endpoints.
+        focal_scan_logic->SetUserLimits(new G4UserLimits(0.25*mm));
+
+        new G4PVPlacement(nullptr,
+                          G4ThreeVector(II_xpos, II_ypos, focal_scan_zpos),
+                          focal_scan_logic, "FOCAL_SCAN", gas_logic,
+                          false, 0, true);
 
 
         // ------------------------

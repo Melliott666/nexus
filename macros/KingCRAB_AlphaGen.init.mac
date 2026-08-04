@@ -22,6 +22,9 @@
 
 /nexus/RegisterRunAction DefaultRunAction
 /nexus/RegisterTrackingAction OpticalTrackingAction
-/nexus/RegisterSteppingAction KillLensFresnelReflections
+# TEMPORARY FOCAL-SCAN TEST. This replaces the independent Fresnel-reflection
+# test while the transparent FOCAL_SCAN cylinder is enabled in KingCRAB.cc.
+# /nexus/RegisterSteppingAction KillLensFresnelReflections
+/nexus/RegisterSteppingAction SaveAllSteppingAction
 
 /nexus/RegisterMacro macros/KingCRAB_AlphaGen.config.mac
