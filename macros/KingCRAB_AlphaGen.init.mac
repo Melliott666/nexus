@@ -21,7 +21,10 @@
 /nexus/RegisterPersistencyManager PersistencyManager
 
 /nexus/RegisterRunAction DefaultRunAction
-/nexus/RegisterTrackingAction OpticalTrackingAction
+# Transport optical photons normally, but do not retain a full trajectory for
+# every photon. The focal-scan stepping action below stores only crossings of
+# the transparent FOCAL_SCAN volume.
+/nexus/RegisterTrackingAction DefaultTrackingAction
 # TEMPORARY FOCAL-SCAN TEST. This replaces the independent Fresnel-reflection
 # test while the transparent FOCAL_SCAN cylinder is enabled in KingCRAB.cc.
 # /nexus/RegisterSteppingAction KillLensFresnelReflections

@@ -33,3 +33,6 @@
 /nexus/random_seed            9
 /nexus/persistency/start_id   0
 /nexus/persistency/output_file KingCRAB_AlphaTracks
+# The focal analysis reads /DEBUG/steps, so a potentially enormous
+# /MC/particles table is unnecessary for this temporary test.
+/nexus/persistency/save_particles false
