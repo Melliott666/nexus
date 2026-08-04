@@ -461,8 +461,12 @@ namespace nexus{
         // --------------------------
         // EL Mesh Placements
         // --------------------------
-        new G4PVPlacement(0, G4ThreeVector(0., 0., z_anode_mesh), EL_grid_logic, "EL_MESH_ANODE", gas_logic, false, 0, false);
-        new G4PVPlacement(pRot, G4ThreeVector(0., 0., z_gate_mesh), EL_grid_logic, "EL_MESH_GATE", gas_logic, false, 1, false);
+        // TEMPORARY MESH-IMAGE DIAGNOSTIC:
+        // Leave both hexagonal EL meshes defined above, but do not place them.
+        // The EL field and photon production remain active. This isolates
+        // whether mesh transmission produces the hexagonal after-image edge.
+        // new G4PVPlacement(0, G4ThreeVector(0., 0., z_anode_mesh), EL_grid_logic, "EL_MESH_ANODE", gas_logic, false, 0, false);
+        // new G4PVPlacement(pRot, G4ThreeVector(0., 0., z_gate_mesh), EL_grid_logic, "EL_MESH_GATE", gas_logic, false, 1, false);
 
 
         // --------------------------
@@ -852,6 +856,15 @@ namespace nexus{
         fsVa->SetForceSolid(true);
         G4LogicalVolume* fsLV = lvStore->GetVolume("FS_LENS");
         if (fsLV) fsLV->SetVisAttributes(fsVa);
+
+        // Bright yellow makes the 1 mm absorbing barrel sleeves easy to
+        // distinguish from the blue fused-silica lenses in geometry views.
+        G4VisAttributes* LensSleeveVa =
+            new G4VisAttributes(nexus::Yellow());
+        LensSleeveVa->SetForceSolid(true);
+        G4LogicalVolume* LensSleeve =
+            lvStore->GetVolume("FS_LENS_SLEEVE");
+        if (LensSleeve) LensSleeve->SetVisAttributes(LensSleeveVa);
 
         G4VisAttributes* MirrorVa = new G4VisAttributes(nexus::Blue());
         MirrorVa->SetForceSolid(true);
