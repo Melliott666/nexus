@@ -36,12 +36,19 @@ def main():
         )
     )
     parser.add_argument("h5_file", type=Path)
-    parser.add_argument("--z-min", type=float, default=1440.0)
-    parser.add_argument("--z-max", type=float, default=1470.0)
-    parser.add_argument("--z-step", type=float, default=0.25)
+    parser.add_argument("--z-min", type=float, default=1447.0)
+    parser.add_argument("--z-max", type=float, default=1451.0)
+    parser.add_argument("--z-step", type=float, default=0.05)
     parser.add_argument("--center-x", type=float, default=-82.55)
     parser.add_argument("--center-y", type=float, default=143.002)
     parser.add_argument("--radius", type=float, default=30.0)
+    parser.add_argument(
+        "--roi-radius", type=float, default=4.0,
+        help=(
+            "Radius in mm around the designed optical axis used to isolate "
+            "the compact, desired alpha image. Default: 4.0"
+        ),
+    )
     parser.add_argument("--volume", default="FOCAL_SCAN")
     parser.add_argument("--output-dir", type=Path, default=None)
     parser.add_argument(
@@ -150,7 +157,30 @@ def main():
         )
         r68 = containment_radius(x, y, 68.0)
         r95 = containment_radius(x, y, 95.0)
-        metrics.append((z_plane, len(x), mean_x, mean_y, rms_radius, r68, r95))
+
+        # Analyze the compact image independently of the displaced curved
+        # ghost. The ROI is fixed around the designed image-axis location so a
+        # changing ghost population cannot pull the selection centroid.
+        distance_from_axis = np.hypot(
+            x - args.center_x, y - args.center_y
+        )
+        roi = distance_from_axis < args.roi_radius
+        roi_x = x[roi]
+        roi_y = y[roi]
+        roi_mean_x = float(np.mean(roi_x)) if len(roi_x) else float("nan")
+        roi_mean_y = float(np.mean(roi_y)) if len(roi_y) else float("nan")
+        roi_rms = (
+            float(np.sqrt(np.mean(
+                (roi_x - roi_mean_x) ** 2 + (roi_y - roi_mean_y) ** 2
+            ))) if len(roi_x) else float("nan")
+        )
+        roi_r68 = containment_radius(roi_x, roi_y, 68.0)
+        roi_r95 = containment_radius(roi_x, roi_y, 95.0)
+
+        metrics.append((
+            z_plane, len(x), mean_x, mean_y, rms_radius, r68, r95,
+            len(roi_x), roi_mean_x, roi_mean_y, roi_rms, roi_r68, roi_r95,
+        ))
 
         fig, ax = plt.subplots(figsize=(7, 7))
         ax.scatter(x, y, s=3, alpha=0.45, linewidths=0)
@@ -161,9 +191,17 @@ def main():
             ylabel="y [mm]",
             title=(
                 f"KingCRAB virtual image at z = {z_plane:.3f} mm\n"
-                f"N = {len(x)}, r68 = {r68:.3f} mm"
+                f"all N = {len(x)}; compact N = {len(roi_x)}, "
+                f"compact r68 = {roi_r68:.3f} mm"
             ),
         )
+        roi_circle = plt.Circle(
+            (args.center_x, args.center_y), args.roi_radius,
+            fill=False, color="tab:red", linestyle="--", linewidth=1.2,
+            label="compact-image ROI",
+        )
+        ax.add_patch(roi_circle)
+        ax.legend(loc="lower right")
         ax.set_aspect("equal", adjustable="box")
         ax.grid(alpha=0.25)
         fig.savefig(output_dir / f"{plane_name(z_plane)}.png", dpi=180,
@@ -175,20 +213,25 @@ def main():
         writer = csv.writer(stream)
         writer.writerow(
             ["z_mm", "photons", "mean_x_mm", "mean_y_mm", "rms_radius_mm",
-             "r68_mm", "r95_mm"]
+             "r68_mm", "r95_mm", "roi_photons", "roi_mean_x_mm",
+             "roi_mean_y_mm", "roi_rms_radius_mm", "roi_r68_mm",
+             "roi_r95_mm"]
         )
         writer.writerows(metrics)
 
-    finite_metrics = [row for row in metrics if np.isfinite(row[5])]
+    # Column 11 is the compact-image r68. This, rather than the all-photon
+    # r68 in column 5, determines the desired image-intensifier location.
+    finite_metrics = [row for row in metrics if np.isfinite(row[11])]
     if finite_metrics:
-        best = min(finite_metrics, key=lambda row: row[5])
+        best = min(finite_metrics, key=lambda row: row[11])
         summary = (
-            f"Minimum r68 plane: z = {best[0]:.6f} mm\n"
-            f"Photons: {best[1]}\n"
-            f"Centroid: ({best[2]:.6f}, {best[3]:.6f}) mm\n"
-            f"RMS radius: {best[4]:.6f} mm\n"
-            f"r68: {best[5]:.6f} mm\n"
-            f"r95: {best[6]:.6f} mm\n"
+            f"Minimum compact-image r68 plane: z = {best[0]:.6f} mm\n"
+            f"Compact-image photons: {best[7]}\n"
+            f"Compact-image centroid: ({best[8]:.6f}, {best[9]:.6f}) mm\n"
+            f"Compact-image RMS radius: {best[10]:.6f} mm\n"
+            f"Compact-image r68: {best[11]:.6f} mm\n"
+            f"Compact-image r95: {best[12]:.6f} mm\n"
+            f"ROI radius about designed axis: {args.roi_radius:.6f} mm\n"
         )
     else:
         summary = "No photon crossings were found on the requested planes.\n"

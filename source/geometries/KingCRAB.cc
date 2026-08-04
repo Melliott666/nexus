@@ -688,8 +688,9 @@ namespace nexus{
         // steps in the focal region for SaveAllSteppingAction. Crossings of any
         // desired z plane can then be interpolated from /DEBUG/steps.
         G4double focal_scan_radius = 30.*mm;
-        G4double focal_scan_z_min_global = 1440.*mm;
-        G4double focal_scan_z_max_global = 1470.*mm;
+        // Restrict the scan to the compact image's apparent focus region.
+        G4double focal_scan_z_min_global = 1447.*mm;
+        G4double focal_scan_z_max_global = 1451.*mm;
         G4double focal_scan_length =
             focal_scan_z_max_global - focal_scan_z_min_global;
         G4double focal_scan_zpos =
@@ -704,7 +705,7 @@ namespace nexus{
         // Provide closely spaced straight-line samples without changing the
         // optical physics. The analysis can use a different virtual-plane
         // spacing by interpolating between these stored step endpoints.
-        focal_scan_logic->SetUserLimits(new G4UserLimits(0.25*mm));
+        focal_scan_logic->SetUserLimits(new G4UserLimits(0.05*mm));
 
         new G4PVPlacement(nullptr,
                           G4ThreeVector(II_xpos, II_ypos, focal_scan_zpos),
