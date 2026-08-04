@@ -569,6 +569,21 @@ namespace nexus{
 
         G4LogicalVolume* Lens_logic = new G4LogicalVolume(Lens_solid, fs_mat, "FS_LENS");
 
+        // Full-depth absorbing sleeve around the cylindrical lens barrel.
+        // It starts exactly at the 25.4 mm clear-aperture radius and catches
+        // grazing rays that would otherwise enter, leave, or reflect from the
+        // fused-silica rim. The same sleeve is used around both lenses.
+        G4double lens_sleeve_width = 1.*mm;
+        G4Tubs* lens_sleeve_solid =
+            new G4Tubs("FS_LENS_SLEEVE", Lens_a,
+                       Lens_a + lens_sleeve_width,
+                       Lens_tc/2.0, 0., twopi);
+        G4LogicalVolume* lens_sleeve_logic =
+            new G4LogicalVolume(lens_sleeve_solid, Steel,
+                                "FS_LENS_SLEEVE");
+        new G4LogicalSkinSurface("FS_LENS_SLEEVE_ABSORBER",
+                                 lens_sleeve_logic, gas_steel_opsur);
+
         G4double z_endcap_wall = vessel_length/2.0 + flange_thick;
         G4double lens_offset = 11.75*cm;
         G4double Lens_zpos = z_endcap_wall - (lens_offset + Lens_tc/2.0);
@@ -577,6 +592,9 @@ namespace nexus{
         Lens_rot->rotateY(180.0*deg);
 
         new G4PVPlacement(Lens_rot, G4ThreeVector(0., 0., Lens_zpos), Lens_logic, "FS_LENS", gas_logic, false, 0, true);
+        new G4PVPlacement(Lens_rot, G4ThreeVector(0., 0., Lens_zpos),
+                          lens_sleeve_logic, "FS_LENS1_SLEEVE",
+                          gas_logic, false, 0, true);
 
 
         // --------------------------
@@ -682,6 +700,10 @@ namespace nexus{
         II_Lens_rot->rotateY(180.0*deg);
 
         new G4PVPlacement(II_Lens_rot, G4ThreeVector(II_xpos, II_ypos, II_lens_zpos), Lens_logic, "Image-Intensifier-FS-Lens", gas_logic, false, 1, true);
+        new G4PVPlacement(II_Lens_rot,
+                          G4ThreeVector(II_xpos, II_ypos, II_lens_zpos),
+                          lens_sleeve_logic, "FS_LENS2_SLEEVE",
+                          gas_logic, false, 1, true);
 
 
         // --------------------------
