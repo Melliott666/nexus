@@ -692,6 +692,28 @@ namespace nexus{
                           "II_PHOTOCATHODE",
                           gas_logic, false, 0, true);
 
+        // Thin transparent scoring disk directly in front of the absorbing
+        // photocathode. An optical photon can be absorbed at the photocathode
+        // boundary before its post-step touchable becomes II_PHOTOCATHODE, so
+        // SaveAllSteppingAction would otherwise record no detector entries.
+        // This GAS-in-GAS boundary provides the same non-perturbing crossing
+        // mechanism validated by the temporary focal-scan cylinder.
+        G4double ii_score_thick = 10.*um;
+        G4Tubs* ii_score_solid =
+            new G4Tubs("II_PHOTOCATHODE_SCORE", 0.,
+                       image_intensifier_diam/2.0,
+                       ii_score_thick/2.0, 0., twopi);
+        G4LogicalVolume* ii_score_logic =
+            new G4LogicalVolume(ii_score_solid, GAS,
+                                "II_PHOTOCATHODE_SCORE");
+        G4double ii_score_zpos = image_intensifier_zpos
+                               - image_intensifier_thick/2.0
+                               - ii_score_thick/2.0;
+        new G4PVPlacement(nullptr,
+                          G4ThreeVector(II_xpos, II_ypos, ii_score_zpos),
+                          ii_score_logic, "II_PHOTOCATHODE_SCORE",
+                          gas_logic, false, 0, true);
+
         G4double II_lens_from_image_intensifier = 68.405974*mm;
         // Preserve the second-lens position used to produce the focal scan.
         // It was originally tied to the old nominal II position, so deriving
