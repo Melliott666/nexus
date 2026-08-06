@@ -5,13 +5,17 @@
 /process/em/verbose 0
 
 # TRANSVERSE TRACK
-# A 1 GeV mu- is approximately minimum-ionizing. Give it both x and y
-# components so its projected trail is diagonal rather than horizontal.
+# A 1 GeV mu- is approximately minimum-ionizing. Keep every track in the x-y
+# plane, but vary its azimuth uniformly by +/- 5 degrees around the original
+# atan2(0.6, 1) = 0.5404 rad direction.
 /Generator/SingleParticle/particle mu-
 /Generator/SingleParticle/min_energy 1 GeV
 /Generator/SingleParticle/max_energy 1 GeV
 /Generator/SingleParticle/region AD_HOC
-/Generator/SingleParticle/momentum 1 0.6 0
+/Generator/SingleParticle/min_costheta 0
+/Generator/SingleParticle/max_costheta 0
+/Generator/SingleParticle/min_phi 0.4531
+/Generator/SingleParticle/max_phi 0.6277
 
 # PHYSICS
 /PhysicsList/Nexus/clustering           true
