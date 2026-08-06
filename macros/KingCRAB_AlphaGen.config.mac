@@ -22,19 +22,26 @@
 /Geometry/KingCRAB/specific_vertex_ 0 0 8.5 mm
 /Geometry/KingCRAB/EL_field_intensity 900 kV/m
 
-# FRESNEL-REFLECTION HYPOTHESIS TEST
-# Remove photons that Fresnel-reflect at either fused-silica lens. Store only
-# crossings into the absorbing image-intensifier disk, then stop those photons.
-# Compare this output with an otherwise identical run using `false` below.
+# FOCAL-SCAN MODE
+# Store optical-photon steps through the transparent z-depth cylinder. Do not
+# stop selected photons, because the analysis interpolates their trajectories
+# across all requested virtual image planes. Keep the current lens Fresnel
+# filter enabled so this scan matches the latest no-Fresnel detector test.
 /Actions/SaveAllSteppingAction/select_particle opticalphoton
-/Actions/SaveAllSteppingAction/select_volume II_PHOTOCATHODE_SCORE
+/Actions/SaveAllSteppingAction/select_volume FOCAL_SCAN
+# Save only sparse optical checkpoints needed to reconstruct the route of
+# photons later identified in the curved image. Avoid selecting GAS/EL_GAP,
+# which would restore the prohibitive all-photon output volume.
+/Actions/SaveAllSteppingAction/select_volume FS_LENS
+/Actions/SaveAllSteppingAction/select_volume Image-Intensifier-FS-Lens
+/Actions/SaveAllSteppingAction/select_volume MIRROR
 /Actions/SaveAllSteppingAction/kill_lens_fresnel_reflections true
-/Actions/SaveAllSteppingAction/kill_after_selection true
+/Actions/SaveAllSteppingAction/kill_after_selection false
 
 # PERSISTENCY
 /nexus/random_seed            9
 /nexus/persistency/start_id   0
-/nexus/persistency/output_file KingCRAB_AlphaTracks_NoLensFresnel
-# Detector hits are in /DEBUG/steps; the enormous all-photon /MC/particles
-# table is deliberately disabled.
+/nexus/persistency/output_file KingCRAB_AlphaTracks_FocalScan_NoFresnel_NoMeshes
+# Focal-cylinder crossings are in /DEBUG/steps; the enormous all-photon
+# /MC/particles table is deliberately disabled.
 /nexus/persistency/save_particles false

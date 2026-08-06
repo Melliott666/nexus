@@ -687,6 +687,7 @@ namespace nexus{
             + image_intensifier_thick/2.0 - z_shift;
         G4ThreeVector image_intensifier_pos(II_xpos, II_ypos, image_intensifier_zpos);
 
+        #if 0 // FOCAL-SCAN MODE: absorbing II disabled so rays cross all z planes.
         new G4PVPlacement(image_intensifier_rot, image_intensifier_pos,
                           image_intensifier_logic,
                           "II_PHOTOCATHODE",
@@ -713,6 +714,7 @@ namespace nexus{
                           G4ThreeVector(II_xpos, II_ypos, ii_score_zpos),
                           ii_score_logic, "II_PHOTOCATHODE_SCORE",
                           gas_logic, false, 0, true);
+        #endif
 
         G4double II_lens_from_image_intensifier = 68.405974*mm;
         // Preserve the second-lens position used to produce the focal scan.
@@ -740,7 +742,7 @@ namespace nexus{
         // reflect, or refract optical photons. Its only purpose is to identify
         // steps in the focal region for SaveAllSteppingAction. Crossings of any
         // desired z plane can then be interpolated from /DEBUG/steps.
-        #if 0 // TEMPORARY FOCAL-SCAN CYLINDER DISABLED; retained for later scans.
+        #if 1 // FOCAL-SCAN MODE: transparent z-depth cylinder enabled.
         G4double focal_scan_radius = 30.*mm;
         // Restrict the scan to the compact image's apparent focus region.
         G4double focal_scan_z_min_global = 1447.*mm;
