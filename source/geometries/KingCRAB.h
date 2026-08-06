@@ -1,6 +1,10 @@
+// ----------------------------------------------------------------------------
+// nexus | KingCRAB.h
 //
 // Geometry of the King CRAB detector
 //
+// The NEXT Collaboration
+// ----------------------------------------------------------------------------
 
 #ifndef NEXUS_KINGCRAB_H
 #define NEXUS_KINGCRAB_H
@@ -11,11 +15,11 @@ class G4GenericMessenger;
 
 namespace nexus {
 
-class BoxPointSampler;
-class CylinderPointSampler;
+  class BoxPointSampler;
+  class CylinderPointSampler;
 
-class KingCRAB: public GeometryBase
-{
+  class KingCRAB: public GeometryBase
+  {
   public:
     /// Constructor
     KingCRAB();
@@ -57,7 +61,7 @@ class KingCRAB: public GeometryBase
     void PlaceVolumes();
     void AssignVisuals();
     void PrintParam();
-};
+  };
 
 } // namespace nexus
 

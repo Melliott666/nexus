@@ -53,7 +53,7 @@ kill_after_selection_(false),
 kill_lens_fresnel_reflections_(false),
 record_selected_track_deaths_(false),
 record_el_electron_entries_(false),
-optical_boundary_(nullptr),
+optical_boundary_(0),
 selected_track_ids_(),
 recorded_el_electron_ids_()
 {
@@ -98,10 +98,10 @@ SaveAllSteppingAction::~SaveAllSteppingAction()
 
 void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
 {
-  G4Track* track = step->GetTrack();
-  G4ParticleDefinition* pdef = track->GetDefinition();
-  G4int track_id = track->GetTrackID();
-  G4String particle_name = pdef->GetParticleName();
+  G4Track*              track         = step->GetTrack();
+  G4ParticleDefinition* pdef          = track->GetDefinition();
+  G4int                 track_id      = track->GetTrackID();
+  G4String              particle_name = pdef->GetParticleName();
 
   G4bool is_ionization_electron =
     pdef == IonizationElectron::Definition();
@@ -127,12 +127,12 @@ void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
   G4double        step_time = (pre->GetGlobalTime()  +
                               post->GetGlobalTime()) / 2.;
 
-  const G4VPhysicalVolume* initial_physical = pre->GetPhysicalVolume();
-  const G4VPhysicalVolume* final_physical = post->GetPhysicalVolume();
+  const G4VPhysicalVolume* initial_physical = pre ->GetPhysicalVolume();
+  const G4VPhysicalVolume*   final_physical = post->GetPhysicalVolume();
   G4String initial_volume = initial_physical ? initial_physical->GetName()
                                              : "OUT_OF_WORLD";
-  G4String final_volume = final_physical ? final_physical->GetName()
-                                         : "OUT_OF_WORLD";
+  G4String   final_volume = final_physical ? final_physical->GetName()
+                                           : "OUT_OF_WORLD";
 
   // KingCRAB's fast drift transports an ionization electron directly to the
   // anode in one step and generates EL photons at sampled points along that
@@ -154,9 +154,9 @@ void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
   if (first_el_entry)
     recorded_el_electron_ids_.insert(track_id);
 
-  G4TrackStatus status = track->GetTrackStatus();
-  G4bool terminal = status == fStopAndKill ||
-                    status == fKillTrackAndSecondaries;
+  G4TrackStatus status   = track->GetTrackStatus();
+  G4bool        terminal = status == fStopAndKill ||
+                           status == fKillTrackAndSecondaries;
   if (consider_el_entry && !first_el_entry) return;
 
   G4bool selected_step = !consider_el_entry &&
@@ -218,7 +218,7 @@ G4bool SaveAllSteppingAction::IsLensFresnelReflection(const G4Step* step)
     return volume && volume->GetLogicalVolume()->GetName() == "FS_LENS";
   };
 
-  const G4VPhysicalVolume* pre_volume =
+  const G4VPhysicalVolume*  pre_volume =
     step->GetPreStepPoint()->GetPhysicalVolume();
   const G4VPhysicalVolume* post_volume = post->GetPhysicalVolume();
   const G4VPhysicalVolume* next_volume = track->GetNextVolume();

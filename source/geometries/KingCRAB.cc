@@ -1,6 +1,10 @@
+// ----------------------------------------------------------------------------
+// nexus | KingCRAB.cc
 //
 // Geometry of the King CRAB detector
 //
+// The NEXT Collaboration
+// ----------------------------------------------------------------------------
 
 #include "KingCRAB.h"
 
@@ -63,7 +67,7 @@
 #include <cmath>
 
 
-namespace nexus{
+namespace nexus {
     using namespace CLHEP;
     REGISTER_CLASS(KingCRAB, GeometryBase)
 
@@ -752,10 +756,9 @@ namespace nexus{
         // to reveal rays that miss the II and must not be interpreted as the
         // detector's active or accepted area.
         G4double focal_scan_radius = 100.*mm;
-        // Restore a broad z-depth scan so conventional 2D slices can show the
-        // evolution of both the focused population and off-axis populations.
-        G4double focal_scan_z_min_global = 1440.*mm;
-        G4double focal_scan_z_max_global = 1470.*mm;
+        // Diagnostic depth requested for conventional 2D focal-plane slices.
+        G4double focal_scan_z_min_global = 1430.*mm;
+        G4double focal_scan_z_max_global = 1450.*mm;
         G4double focal_scan_length =
             focal_scan_z_max_global - focal_scan_z_min_global;
         G4double focal_scan_zpos =
@@ -771,10 +774,10 @@ namespace nexus{
         // optical physics. The analysis can use a different virtual-plane
         // spacing by interpolating between these stored step endpoints.
         // A 0.25 mm step is sufficient for virtual-plane interpolation while
-        // limiting output size across the enlarged 30 mm diagnostic depth.
+        // limiting output size across the enlarged 20 mm diagnostic depth.
         focal_scan_logic->SetUserLimits(new G4UserLimits(0.25*mm));
 
-        new G4PVPlacement(nullptr,
+        new G4PVPlacement(0,
                           G4ThreeVector(II_xpos, II_ypos, focal_scan_zpos),
                           focal_scan_logic, "FOCAL_SCAN", gas_logic,
                           false, 0, true);

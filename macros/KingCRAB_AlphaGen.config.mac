@@ -25,8 +25,8 @@
 # FOCAL-SCAN MODE
 # Store optical-photon steps through the transparent z-depth cylinder. Do not
 # stop selected photons, because the analysis interpolates their trajectories
-# across all requested virtual image planes. Keep the current lens Fresnel
-# filter enabled so this scan matches the latest no-Fresnel detector test.
+# across all requested virtual image planes. Ordinary Geant4 Fresnel
+# reflection and transmission are enabled at both fused-silica lenses.
 /Actions/SaveAllSteppingAction/select_particle opticalphoton
 /Actions/SaveAllSteppingAction/select_volume FOCAL_SCAN
 # Save only sparse optical checkpoints needed to reconstruct the route of
@@ -35,7 +35,7 @@
 /Actions/SaveAllSteppingAction/select_volume FS_LENS
 /Actions/SaveAllSteppingAction/select_volume Image-Intensifier-FS-Lens
 /Actions/SaveAllSteppingAction/select_volume MIRROR
-/Actions/SaveAllSteppingAction/kill_lens_fresnel_reflections true
+/Actions/SaveAllSteppingAction/kill_lens_fresnel_reflections false
 /Actions/SaveAllSteppingAction/kill_after_selection false
 # Record where photons die only after they have touched one of the selected
 # optical components. This avoids saving terminal rows for the enormous number

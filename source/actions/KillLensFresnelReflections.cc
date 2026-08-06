@@ -1,9 +1,11 @@
 // ----------------------------------------------------------------------------
-// Temporary KingCRAB diagnostic action.
+// nexus | KillLensFresnelReflections.cc
 //
 // Kill optical photons that undergo Fresnel reflection at either fused-silica
 // lens while leaving normally refracted photons unchanged. This isolates lens
 // reflection ghosts without modifying the lens geometry or material.
+//
+// The NEXT Collaboration
 // ----------------------------------------------------------------------------
 
 #include "FactoryBase.h"
@@ -26,7 +28,7 @@ namespace nexus {
 class KillLensFresnelReflections: public G4UserSteppingAction
 {
 public:
-  KillLensFresnelReflections(): boundary_(nullptr) {}
+  KillLensFresnelReflections(): boundary_(0) {}
 
   void UserSteppingAction(const G4Step* step) override
   {
@@ -79,4 +81,3 @@ private:
 REGISTER_CLASS(KillLensFresnelReflections, G4UserSteppingAction)
 
 } // namespace nexus
-
