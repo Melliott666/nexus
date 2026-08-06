@@ -50,7 +50,9 @@ final_poss_(),
 times_(),
 kill_after_selection_(false),
 kill_lens_fresnel_reflections_(false),
-optical_boundary_(nullptr)
+record_selected_track_deaths_(false),
+optical_boundary_(nullptr),
+selected_track_ids_()
 {
   msg_ = new G4GenericMessenger(this, "/Actions/SaveAllSteppingAction/");
 
@@ -67,6 +69,10 @@ optical_boundary_(nullptr)
   msg_->DeclareProperty(
     "kill_lens_fresnel_reflections", kill_lens_fresnel_reflections_,
     "Kill optical photons Fresnel-reflected at either FS_LENS boundary");
+
+  msg_->DeclareProperty(
+    "record_selected_track_deaths", record_selected_track_deaths_,
+    "Record the terminal step of tracks that previously touched a selected volume");
 
   PersistencyManager* pm = dynamic_cast<PersistencyManager*>
         (G4VPersistencyManager::GetPersistencyManager());
@@ -85,20 +91,21 @@ SaveAllSteppingAction::~SaveAllSteppingAction()
 
 void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
 {
+  G4Track* track = step->GetTrack();
+  G4ParticleDefinition* pdef = track->GetDefinition();
+  G4int track_id = track->GetTrackID();
+  G4String particle_name = pdef->GetParticleName();
+
+  if (!KeepParticle(pdef)) return;
+
   // This optional filter lets KingCRAB test the lens-reflection ghost
   // hypothesis while retaining the tightly filtered /DEBUG/steps output.
   // Nexus accepts only one user stepping action, so this cannot be run as a
   // separate KillLensFresnelReflections action alongside this recorder.
-  if (kill_lens_fresnel_reflections_ && IsLensFresnelReflection(step)) {
-    step->GetTrack()->SetTrackStatus(fStopAndKill);
-    return;
-  }
-
-  G4ParticleDefinition* pdef          = step->GetTrack()->GetDefinition();
-  G4int                 track_id      = step->GetTrack()->GetTrackID();
-  G4String              particle_name = pdef->GetParticleName();
-
-  if (!KeepParticle(pdef)) return;
+  G4bool killed_lens_fresnel =
+    kill_lens_fresnel_reflections_ && IsLensFresnelReflection(step);
+  if (killed_lens_fresnel)
+    track->SetTrackStatus(fStopAndKill);
 
   G4StepPoint* pre  = step->GetPreStepPoint();
   G4StepPoint* post = step->GetPostStepPoint();
@@ -108,14 +115,31 @@ void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
   G4double        step_time = (pre->GetGlobalTime()  +
                               post->GetGlobalTime()) / 2.;
 
-  if (! post->GetTouchableHandle()->GetVolume()) return; // Particle exits the world
+  const G4VPhysicalVolume* initial_physical = pre->GetPhysicalVolume();
+  const G4VPhysicalVolume* final_physical = post->GetPhysicalVolume();
+  G4String initial_volume = initial_physical ? initial_physical->GetName()
+                                             : "OUT_OF_WORLD";
+  G4String final_volume = final_physical ? final_physical->GetName()
+                                         : "OUT_OF_WORLD";
 
-  G4String initial_volume = pre ->GetTouchableHandle()->GetVolume()->GetName();
-  G4String   final_volume = post->GetTouchableHandle()->GetVolume()->GetName();
-  G4String      proc_name = post->GetProcessDefinedStep()->GetProcessName();
+  G4bool selected_step = KeepVolume(initial_volume, final_volume);
+  if (selected_step)
+    selected_track_ids_.insert(track_id);
 
-  if (!KeepVolume(initial_volume, final_volume))
-    return;
+  G4TrackStatus status = track->GetTrackStatus();
+  G4bool terminal = status == fStopAndKill ||
+                    status == fKillTrackAndSecondaries;
+  G4bool selected_death = record_selected_track_deaths_ && terminal &&
+                          selected_track_ids_.count(track_id);
+
+  if (!selected_step && !selected_death) return;
+
+  const G4VProcess* process = post->GetProcessDefinedStep();
+  G4String proc_name = process ? process->GetProcessName() : "NoProcess";
+  if (killed_lens_fresnel)
+    proc_name = "KilledLensFresnelReflection";
+  if (selected_death)
+    proc_name = "DEATH:" + proc_name;
 
   std::pair<G4int, G4String> key = std::make_pair(track_id, particle_name);
 
@@ -128,7 +152,7 @@ void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
          times_   [key].push_back(  step_time);
 
   if (kill_after_selection_)
-    step->GetTrack()->SetTrackStatus(fStopAndKill);
+    track->SetTrackStatus(fStopAndKill);
 }
 
 
@@ -216,4 +240,6 @@ void SaveAllSteppingAction::Reset()
   initial_poss_   .clear();
     final_poss_   .clear();
          times_   .clear();
+
+  selected_track_ids_.clear();
 }

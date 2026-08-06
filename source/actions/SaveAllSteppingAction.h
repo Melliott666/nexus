@@ -30,6 +30,7 @@
 
 #include <vector>
 #include <map>
+#include <set>
 
 class G4Step;
 class G4OpBoundaryProcess;
@@ -68,7 +69,9 @@ namespace nexus {
 
     G4bool kill_after_selection_;
     G4bool kill_lens_fresnel_reflections_;
+    G4bool record_selected_track_deaths_;
     G4OpBoundaryProcess* optical_boundary_;
+    std::set<G4int> selected_track_ids_;
 
   public:
 

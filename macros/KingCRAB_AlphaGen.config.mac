@@ -37,11 +37,15 @@
 /Actions/SaveAllSteppingAction/select_volume MIRROR
 /Actions/SaveAllSteppingAction/kill_lens_fresnel_reflections true
 /Actions/SaveAllSteppingAction/kill_after_selection false
+# Record where photons die only after they have touched one of the selected
+# optical components. This avoids saving terminal rows for the enormous number
+# of isotropic photons that never enter the imaging system.
+/Actions/SaveAllSteppingAction/record_selected_track_deaths true
 
 # PERSISTENCY
 /nexus/random_seed            9
 /nexus/persistency/start_id   0
-/nexus/persistency/output_file KingCRAB_AlphaTracks_FocalScan_NoFresnel_NoMeshes
+/nexus/persistency/output_file KingCRAB_AlphaTracks_OpticalDiagnostic_LargeCylinder
 # Focal-cylinder crossings are in /DEBUG/steps; the enormous all-photon
 # /MC/particles table is deliberately disabled.
 /nexus/persistency/save_particles false

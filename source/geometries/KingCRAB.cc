@@ -747,10 +747,15 @@ namespace nexus{
         // steps in the focal region for SaveAllSteppingAction. Crossings of any
         // desired z plane can then be interpolated from /DEBUG/steps.
         #if 1 // FOCAL-SCAN MODE: transparent z-depth cylinder enabled.
-        G4double focal_scan_radius = 30.*mm;
-        // Restrict the scan to the compact image's apparent focus region.
-        G4double focal_scan_z_min_global = 1447.*mm;
-        G4double focal_scan_z_max_global = 1451.*mm;
+        // DIAGNOSTIC OVERSIZE: this 100 mm radius is intentionally much
+        // larger than the physical 25.4 mm II aperture. It is only intended
+        // to reveal rays that miss the II and must not be interpreted as the
+        // detector's active or accepted area.
+        G4double focal_scan_radius = 100.*mm;
+        // Restore a broad z-depth scan so conventional 2D slices can show the
+        // evolution of both the focused population and off-axis populations.
+        G4double focal_scan_z_min_global = 1440.*mm;
+        G4double focal_scan_z_max_global = 1470.*mm;
         G4double focal_scan_length =
             focal_scan_z_max_global - focal_scan_z_min_global;
         G4double focal_scan_zpos =
@@ -765,7 +770,9 @@ namespace nexus{
         // Provide closely spaced straight-line samples without changing the
         // optical physics. The analysis can use a different virtual-plane
         // spacing by interpolating between these stored step endpoints.
-        focal_scan_logic->SetUserLimits(new G4UserLimits(0.05*mm));
+        // A 0.25 mm step is sufficient for virtual-plane interpolation while
+        // limiting output size across the enlarged 30 mm diagnostic depth.
+        focal_scan_logic->SetUserLimits(new G4UserLimits(0.25*mm));
 
         new G4PVPlacement(nullptr,
                           G4ThreeVector(II_xpos, II_ypos, focal_scan_zpos),
