@@ -1,0 +1,47 @@
+# VERBOSITY
+/run/verbose 0
+/event/verbose 0
+/tracking/verbose 0
+/process/em/verbose 0
+
+# TRANSVERSE TRACK
+# A 1 GeV mu- is approximately minimum-ionizing and crosses the detector in x.
+# Starting well inside the active radius produces a long x-y trail rather than
+# the nearly point-like optical projection of the z-directed alpha test.
+/Generator/SingleParticle/particle mu-
+/Generator/SingleParticle/min_energy 1 GeV
+/Generator/SingleParticle/max_energy 1 GeV
+/Generator/SingleParticle/region AD_HOC
+/Generator/SingleParticle/momentum 1 0 0
+
+# PHYSICS
+/PhysicsList/Nexus/clustering           true
+/PhysicsList/Nexus/drift                true
+/PhysicsList/Nexus/electroluminescence  true
+
+# GEOMETRY
+/Geometry/KingCRAB/gas_pressure 5 bar
+/Geometry/KingCRAB/max_step_size 2 mm
+/Geometry/KingCRAB/specific_vertex_ -150 0 400 mm
+/Geometry/KingCRAB/EL_field_intensity 900 kV/m
+
+# OPTICAL AND CHARGE DIAGNOSTICS
+/Actions/SaveAllSteppingAction/select_particle opticalphoton
+/Actions/SaveAllSteppingAction/select_volume FOCAL_SCAN
+/Actions/SaveAllSteppingAction/select_volume FS_LENS
+/Actions/SaveAllSteppingAction/select_volume Image-Intensifier-FS-Lens
+/Actions/SaveAllSteppingAction/select_volume MIRROR
+/Actions/SaveAllSteppingAction/kill_lens_fresnel_reflections true
+/Actions/SaveAllSteppingAction/kill_after_selection false
+/Actions/SaveAllSteppingAction/record_selected_track_deaths false
+# Save one point per ionization electron on its first step at the EL gap. The
+# electron may subsequently cross the gap while producing EL photons.
+/Actions/SaveAllSteppingAction/record_el_electron_entries true
+
+# PERSISTENCY
+/nexus/random_seed 19
+/nexus/persistency/start_id 0
+/nexus/persistency/output_file KingCRAB_MuonTrack_ThreeStage
+# DefaultTrackingAction keeps this table compact by excluding optical photons
+# and ionization electrons; it retains the primary muon and physical secondaries.
+/nexus/persistency/save_particles true

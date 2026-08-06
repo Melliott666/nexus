@@ -21,6 +21,7 @@
 #include "SaveAllSteppingAction.h"
 #include "PersistencyManager.h"
 #include "FactoryBase.h"
+#include "IonizationElectron.h"
 
 #include <G4Step.hh>
 #include <G4LogicalVolume.hh>
@@ -51,8 +52,10 @@ times_(),
 kill_after_selection_(false),
 kill_lens_fresnel_reflections_(false),
 record_selected_track_deaths_(false),
+record_el_electron_entries_(false),
 optical_boundary_(nullptr),
-selected_track_ids_()
+selected_track_ids_(),
+recorded_el_electron_ids_()
 {
   msg_ = new G4GenericMessenger(this, "/Actions/SaveAllSteppingAction/");
 
@@ -73,6 +76,10 @@ selected_track_ids_()
   msg_->DeclareProperty(
     "record_selected_track_deaths", record_selected_track_deaths_,
     "Record the terminal step of tracks that previously touched a selected volume");
+
+  msg_->DeclareProperty(
+    "record_el_electron_entries", record_el_electron_entries_,
+    "Record each ionization electron when it first reaches the EL gap");
 
   PersistencyManager* pm = dynamic_cast<PersistencyManager*>
         (G4VPersistencyManager::GetPersistencyManager());
@@ -96,7 +103,12 @@ void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
   G4int track_id = track->GetTrackID();
   G4String particle_name = pdef->GetParticleName();
 
-  if (!KeepParticle(pdef)) return;
+  G4bool is_ionization_electron =
+    pdef == IonizationElectron::Definition();
+  G4bool consider_el_entry =
+    record_el_electron_entries_ && is_ionization_electron;
+
+  if (!consider_el_entry && !KeepParticle(pdef)) return;
 
   // This optional filter lets KingCRAB test the lens-reflection ghost
   // hypothesis while retaining the tightly filtered /DEBUG/steps output.
@@ -122,17 +134,26 @@ void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
   G4String final_volume = final_physical ? final_physical->GetName()
                                          : "OUT_OF_WORLD";
 
-  G4bool selected_step = KeepVolume(initial_volume, final_volume);
-  if (selected_step)
-    selected_track_ids_.insert(track_id);
+  G4bool in_el_gap = initial_volume == "EL_GAP" || final_volume == "EL_GAP";
+  G4bool first_el_entry = consider_el_entry && in_el_gap &&
+                          !recorded_el_electron_ids_.count(track_id);
+  if (first_el_entry)
+    recorded_el_electron_ids_.insert(track_id);
 
   G4TrackStatus status = track->GetTrackStatus();
   G4bool terminal = status == fStopAndKill ||
                     status == fKillTrackAndSecondaries;
+  if (consider_el_entry && !first_el_entry) return;
+
+  G4bool selected_step = !consider_el_entry &&
+                         KeepVolume(initial_volume, final_volume);
+  if (selected_step)
+    selected_track_ids_.insert(track_id);
+
   G4bool selected_death = record_selected_track_deaths_ && terminal &&
                           selected_track_ids_.count(track_id);
 
-  if (!selected_step && !selected_death) return;
+  if (!selected_step && !selected_death && !first_el_entry) return;
 
   const G4VProcess* process = post->GetProcessDefinedStep();
   G4String proc_name = process ? process->GetProcessName() : "NoProcess";
@@ -140,6 +161,8 @@ void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
     proc_name = "KilledLensFresnelReflection";
   if (selected_death)
     proc_name = "DEATH:" + proc_name;
+  if (first_el_entry)
+    proc_name = "EL_ELECTRON_ENTRY:" + proc_name;
 
   std::pair<G4int, G4String> key = std::make_pair(track_id, particle_name);
 
@@ -242,4 +265,5 @@ void SaveAllSteppingAction::Reset()
          times_   .clear();
 
   selected_track_ids_.clear();
+  recorded_el_electron_ids_.clear();
 }

@@ -70,8 +70,10 @@ namespace nexus {
     G4bool kill_after_selection_;
     G4bool kill_lens_fresnel_reflections_;
     G4bool record_selected_track_deaths_;
+    G4bool record_el_electron_entries_;
     G4OpBoundaryProcess* optical_boundary_;
     std::set<G4int> selected_track_ids_;
+    std::set<G4int> recorded_el_electron_ids_;
 
   public:
 
