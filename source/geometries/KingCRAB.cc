@@ -604,7 +604,11 @@ namespace nexus{
         // --------------------------
         // Mirrors
         // --------------------------
-        G4double Mirror_D = 50.8*mm;
+        // Diagnostic test: double the diameter of both mirrors while keeping
+        // their centres, rotations and thickness unchanged. This tests
+        // whether the curved image is produced by rays grazing the original
+        // 50.8 mm mirror apertures.
+        G4double Mirror_D = 101.6*mm;
         G4double Mirror_T = .01*mm;
         // Add a narrow fully absorbing collar around the reflective edge to
         // catch grazing photons without materially enlarging the mirror.
