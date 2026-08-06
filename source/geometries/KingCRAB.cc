@@ -18,6 +18,7 @@
 // Nexus materials/optics/physics
 #include "MaterialsList.h"
 #include "OpticalMaterialProperties.h"
+#include "ArgonGasProperties.h"
 #include "UniformElectricDriftField.h"
 #include "XenonProperties.h"
 
@@ -126,7 +127,9 @@ namespace nexus {
         gas_pressure_(1. * bar),
         max_step_size_(0.1 * mm),
         gastype_("xenon"),
+        sc_yield_(25510. / MeV),
         specific_vertex_(0., 0., 0.),
+        direct_light_search_(false),
         drift_field_on_(true),
         drift_v_(1.0 * mm/microsecond),
         drift_e_lifetime_(100. * ms),
@@ -145,6 +148,7 @@ namespace nexus {
         new G4UnitDefinition("volt/cm","V/cm","Electric field", volt/cm);
         new G4UnitDefinition("mm/sqrt(cm)","mm/sqrt(cm)","Diffusion", mm/sqrt(cm));
         new G4UnitDefinition("mm/microsecond","mm/microsecond","drift velocity", mm/microsecond);
+        new G4UnitDefinition("1/MeV", "1/MeV", "1/Energy", 1/MeV);
 
         msg_ = new G4GenericMessenger(this, "/Geometry/KingCRAB/","Control commands of geometry of KingCRAB TPC");
         G4GenericMessenger::Command&  Pressure_cmd =msg_->DeclarePropertyWithUnit("gas_pressure","bar",gas_pressure_,"Pressure of Gas");
@@ -155,7 +159,16 @@ namespace nexus {
 
         msg_->DeclareProperty("gastype", gastype_, "The GAS to use in the detector");
 
+        G4GenericMessenger::Command& sc_yield_cmd =
+            msg_->DeclareProperty("sc_yield", sc_yield_,
+                                  "Set the primary scintillation yield.");
+        sc_yield_cmd.SetParameterName("sc_yield", true);
+        sc_yield_cmd.SetUnitCategory("1/Energy");
+
         msg_->DeclarePropertyWithUnit("specific_vertex_", "mm",  specific_vertex_, "Set generation vertex.");
+
+        msg_->DeclareProperty("direct_light_search", direct_light_search_,
+                              "Remove the periscope and score direct light at the II endcap.");
 
         msg_->DeclareProperty("drift_field_on", drift_field_on_, "Turn drift field on/off.");
 
@@ -200,16 +213,14 @@ namespace nexus {
         if (gastype_ == "xenon"){
             std::cout << "Using Xenon! "<< gas_pressure_/bar << " bar"  << std::endl;
             GAS = materials::GXeEnriched(gas_pressure_, 293. * kelvin);
-            G4double sc_yield    = 25510. * 1/MeV;
             G4double e_lifetime  = 100*ms;
-            GAS->SetMaterialPropertiesTable(opticalprops::GXe(gas_pressure_, 293*kelvin, sc_yield, e_lifetime));
+            GAS->SetMaterialPropertiesTable(opticalprops::GXe(gas_pressure_, 293*kelvin, sc_yield_, e_lifetime));
         }
         else if (gastype_ == "argon"){
             std::cout << "Using Argon! "<< gas_pressure_/bar << " bar"  << std::endl;
             GAS = materials::GAr(gas_pressure_, 293. * kelvin);
-            G4double sc_yield    = 25510. * 1/MeV; // NEEDS UPDATING Ws
             G4double e_lifetime  = 100*ms;
-            GAS->SetMaterialPropertiesTable(opticalprops::GAr(sc_yield, e_lifetime));
+            GAS->SetMaterialPropertiesTable(opticalprops::GAr(sc_yield_, e_lifetime));
         }
         else 
             std::cout << "Error in specified gas" << std::endl;
@@ -331,11 +342,17 @@ namespace nexus {
 
         G4UnionSolid* gas_plus_hole_solid = new G4UnionSolid("GAS_PLUS_DETECTOR_HOLE", gas_main_solid, detector_hole_gas_solid, 0, G4ThreeVector(detector_hole_xpos, detector_hole_ypos, detector_hole_gas_zpos));
 
-        // The endcap-hole gas already reaches 100 um into this section, so no
-        // extension is needed here. Ending at II_length/2 keeps the gas flush
-        // with, rather than inside, II_REGION_ENDCAP.
-        G4Tubs* II_gas_solid = new G4Tubs("II_REGION_GAS_SOLID", 0., II_IR, II_length/2.0, 0, twopi);
-        G4double II_gas_zpos = II_zpos - z_shift;
+        // In normal optical mode the gas ends at the inner face of the II
+        // endcap. The idealized direct-light search removes that endcap and
+        // window, and extends gas to the endcap's nominal far-side plane.
+        G4double direct_light_extension =
+            direct_light_search_ ? vessel_thickn : 0.;
+        G4double II_gas_length = II_length + direct_light_extension;
+        G4Tubs* II_gas_solid =
+            new G4Tubs("II_REGION_GAS_SOLID", 0., II_IR,
+                       II_gas_length/2.0, 0, twopi);
+        G4double II_gas_zpos = II_zpos - z_shift
+                             + direct_light_extension/2.0;
 
         G4UnionSolid* gas_solid = new G4UnionSolid("GAS", gas_plus_hole_solid, II_gas_solid, 0, G4ThreeVector(II_xpos, II_ypos, II_gas_zpos));
 
@@ -425,7 +442,9 @@ namespace nexus {
             drift_field->SetLifetime(drift_e_lifetime_);
 
             if (el_field_on_ && el_field_int_ > 0.) {
-                G4double yield = XenonELLightYield(el_field_int_, gas_pressure_);
+                G4double yield = gastype_ == "argon" ?
+                    ArgonELLightYield(el_field_int_, gas_pressure_) :
+                    XenonELLightYield(el_field_int_, gas_pressure_);
                 drift_field->SetLightYield(yield);
                 drift_field->SetELRegion(z_anode_el_face_global, z_gate_el_face_global);
             }
@@ -447,7 +466,9 @@ namespace nexus {
         elgap_logic->SetUserLimits(new G4UserLimits(max_step_size_));
 
         if (el_field_on_ && el_field_int_ > 0.) {
-            G4double yield = XenonELLightYield(el_field_int_, gas_pressure_);
+            G4double yield = gastype_ == "argon" ?
+                ArgonELLightYield(el_field_int_, gas_pressure_) :
+                XenonELLightYield(el_field_int_, gas_pressure_);
 
             UniformElectricDriftField* el_field = new UniformElectricDriftField();
 
@@ -599,10 +620,12 @@ namespace nexus {
         G4RotationMatrix* Lens_rot = new G4RotationMatrix();
         Lens_rot->rotateY(180.0*deg);
 
-        new G4PVPlacement(Lens_rot, G4ThreeVector(0., 0., Lens_zpos), Lens_logic, "FS_LENS", gas_logic, false, 0, true);
-        new G4PVPlacement(Lens_rot, G4ThreeVector(0., 0., Lens_zpos),
-                          lens_sleeve_logic, "FS_LENS1_SLEEVE",
-                          gas_logic, false, 0, true);
+        if (!direct_light_search_) {
+            new G4PVPlacement(Lens_rot, G4ThreeVector(0., 0., Lens_zpos), Lens_logic, "FS_LENS", gas_logic, false, 0, true);
+            new G4PVPlacement(Lens_rot, G4ThreeVector(0., 0., Lens_zpos),
+                              lens_sleeve_logic, "FS_LENS1_SLEEVE",
+                              gas_logic, false, 0, true);
+        }
 
 
         // --------------------------
@@ -637,10 +660,12 @@ namespace nexus {
         Mirror_rot->rotateZ(theta);
         Mirror_rot->rotateX(135.0*deg);
 
-        new G4PVPlacement(Mirror_rot, G4ThreeVector(0., 0., Mirror_zpos), Mirror_logic, "MIRROR", gas_logic, false, 0, true);
-        new G4PVPlacement(Mirror_rot, G4ThreeVector(0., 0., Mirror_zpos),
-                          mirror_baffle_logic, "MIRROR1_BAFFLE",
-                          gas_logic, false, 0, true);
+        if (!direct_light_search_) {
+            new G4PVPlacement(Mirror_rot, G4ThreeVector(0., 0., Mirror_zpos), Mirror_logic, "MIRROR", gas_logic, false, 0, true);
+            new G4PVPlacement(Mirror_rot, G4ThreeVector(0., 0., Mirror_zpos),
+                              mirror_baffle_logic, "MIRROR1_BAFFLE",
+                              gas_logic, false, 0, true);
+        }
 
         auto* mirror1_opsur = new G4OpticalSurface("MIRROR1_OPSURF", unified, polished, dielectric_metal);
         mirror1_opsur->SetMaterialPropertiesTable(opticalprops::MirrorReflectivity());
@@ -657,11 +682,13 @@ namespace nexus {
         Mirror2_rot->rotateZ(theta);
         Mirror2_rot->rotateX(-45.0*deg);
 
-        new G4PVPlacement(Mirror2_rot, G4ThreeVector(Mirror2_xpos, Mirror2_ypos, Mirror2_zpos), Mirror2_logic, "MIRROR2", gas_logic, false, 0, true);
-        new G4PVPlacement(Mirror2_rot,
-                          G4ThreeVector(Mirror2_xpos, Mirror2_ypos, Mirror2_zpos),
-                          mirror_baffle_logic, "MIRROR2_BAFFLE",
-                          gas_logic, false, 1, true);
+        if (!direct_light_search_) {
+            new G4PVPlacement(Mirror2_rot, G4ThreeVector(Mirror2_xpos, Mirror2_ypos, Mirror2_zpos), Mirror2_logic, "MIRROR2", gas_logic, false, 0, true);
+            new G4PVPlacement(Mirror2_rot,
+                              G4ThreeVector(Mirror2_xpos, Mirror2_ypos, Mirror2_zpos),
+                              mirror_baffle_logic, "MIRROR2_BAFFLE",
+                              gas_logic, false, 1, true);
+        }
 
         auto* mirror2_opsur = new G4OpticalSurface("MIRROR2_OPSURF", unified, polished, dielectric_metal);
         mirror2_opsur->SetMaterialPropertiesTable(opticalprops::MirrorReflectivity());
@@ -735,11 +762,13 @@ namespace nexus {
         G4RotationMatrix* II_Lens_rot = new G4RotationMatrix();
         II_Lens_rot->rotateY(180.0*deg);
 
-        new G4PVPlacement(II_Lens_rot, G4ThreeVector(II_xpos, II_ypos, II_lens_zpos), Lens_logic, "Image-Intensifier-FS-Lens", gas_logic, false, 1, true);
-        new G4PVPlacement(II_Lens_rot,
-                          G4ThreeVector(II_xpos, II_ypos, II_lens_zpos),
-                          lens_sleeve_logic, "FS_LENS2_SLEEVE",
-                          gas_logic, false, 1, true);
+        if (!direct_light_search_) {
+            new G4PVPlacement(II_Lens_rot, G4ThreeVector(II_xpos, II_ypos, II_lens_zpos), Lens_logic, "Image-Intensifier-FS-Lens", gas_logic, false, 1, true);
+            new G4PVPlacement(II_Lens_rot,
+                              G4ThreeVector(II_xpos, II_ypos, II_lens_zpos),
+                              lens_sleeve_logic, "FS_LENS2_SLEEVE",
+                              gas_logic, false, 1, true);
+        }
 
 
         // --------------------------
@@ -777,11 +806,45 @@ namespace nexus {
         // limiting output size across the enlarged 20 mm diagnostic depth.
         focal_scan_logic->SetUserLimits(new G4UserLimits(0.25*mm));
 
-        new G4PVPlacement(0,
-                          G4ThreeVector(II_xpos, II_ypos, focal_scan_zpos),
-                          focal_scan_logic, "FOCAL_SCAN", gas_logic,
-                          false, 0, true);
+        if (!direct_light_search_)
+            new G4PVPlacement(0,
+                              G4ThreeVector(II_xpos, II_ypos, focal_scan_zpos),
+                              focal_scan_logic, "FOCAL_SCAN", gas_logic,
+                              false, 0, true);
         #endif
+
+
+        // --------------------------
+        // Direct-Light One-Inch Scoring Plane
+        // --------------------------
+        // The plane is immediately inside the nominal far-side face of the
+        // omitted II endcap. It is GAS in GAS and has no optical surface, so
+        // it marks photon arrivals without adding a window or refraction.
+        if (direct_light_search_) {
+            G4double direct_score_radius = 0.5*2.54*cm;
+            G4double direct_score_thick = 10.*um;
+            G4double II_endcap_far_z_global =
+                II_zpos + II_length/2.0 + vessel_thickn;
+            G4double direct_score_zpos = II_endcap_far_z_global - z_shift
+                                       - direct_score_thick/2.0;
+
+            G4Tubs* direct_score_solid =
+                new G4Tubs("II_ONE_INCH_SCORE", 0., direct_score_radius,
+                           direct_score_thick/2.0, 0., twopi);
+            G4LogicalVolume* direct_score_logic =
+                new G4LogicalVolume(direct_score_solid, GAS,
+                                    "II_ONE_INCH_SCORE");
+            new G4PVPlacement(0,
+                              G4ThreeVector(II_xpos, II_ypos,
+                                            direct_score_zpos),
+                              direct_score_logic, "II_ONE_INCH_SCORE",
+                              gas_logic, false, 0, true);
+            G4cout << "Direct-light score plane: center = ("
+                   << II_xpos/mm << ", " << II_ypos/mm << ", "
+                   << (II_endcap_far_z_global - direct_score_thick/2.0)/mm
+                   << ") mm; diameter = " << 2.*direct_score_radius/mm
+                   << " mm" << G4endl;
+        }
 
 
         // ------------------------
@@ -811,7 +874,11 @@ namespace nexus {
 
         G4double II_endcap_zpos = II_zpos + II_length/2.0 + II_endcap_thick/2.0;
 
-        new G4PVPlacement(0, G4ThreeVector(II_xpos, II_ypos, II_endcap_zpos), II_endcap_logic, "II_REGION_ENDCAP", lab_logic_volume, false, 0, true);
+        // The direct-light search is an idealized no-window measurement at
+        // this endcap's nominal outer face, so the opaque steel disk is not
+        // constructed in that mode.
+        if (!direct_light_search_)
+            new G4PVPlacement(0, G4ThreeVector(II_xpos, II_ypos, II_endcap_zpos), II_endcap_logic, "II_REGION_ENDCAP", lab_logic_volume, false, 0, true);
         new G4LogicalSkinSurface("GAS_II_REGION_ENDCAP_OPSURF", II_endcap_logic, gas_steel_opsur);
 
 
@@ -868,6 +935,9 @@ namespace nexus {
         ImageIntensifierVa->SetForceSolid(true);
         G4LogicalVolume* ImageIntensifier = lvStore->GetVolume("Image-Intensifier");
         if (ImageIntensifier) ImageIntensifier->SetVisAttributes(ImageIntensifierVa);
+
+        G4LogicalVolume* DirectScore = lvStore->GetVolume("II_ONE_INCH_SCORE");
+        if (DirectScore) DirectScore->SetVisAttributes(ImageIntensifierVa);
 
         G4VisAttributes *FieldRingVa=new G4VisAttributes(nexus::CopperBrownAlpha());
         FieldRingVa->SetForceSolid(true);

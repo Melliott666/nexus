@@ -39,7 +39,9 @@ namespace nexus {
     G4double gas_pressure_;
     G4double max_step_size_;
     G4String gastype_;
+    G4double sc_yield_;
     G4ThreeVector specific_vertex_;
+    G4bool direct_light_search_;
 
     // Active/drift field controls
     G4bool drift_field_on_;

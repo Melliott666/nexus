@@ -118,6 +118,10 @@ namespace nexus {
     //G4double fano_factor = mpt->GetConstProperty("FANOFACTOR");
     G4double ioni_energy = 22.4 * eV;
     G4double fano_factor = .15;
+    if (track.GetMaterial()->GetName() == "GAr") {
+      ioni_energy = 26.4 * eV;
+      fano_factor = .17;
+    }
 
     G4double mean = energy_dep / ioni_energy;
 

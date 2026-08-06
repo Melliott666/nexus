@@ -171,6 +171,13 @@ void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
 
   const G4VProcess* process = post->GetProcessDefinedStep();
   G4String proc_name = process ? process->GetProcessName() : "NoProcess";
+  if (selected_step &&
+      (initial_volume == "II_ONE_INCH_SCORE" ||
+       final_volume == "II_ONE_INCH_SCORE")) {
+    const G4VProcess* creator = track->GetCreatorProcess();
+    G4String origin = creator ? creator->GetProcessName() : "Primary";
+    proc_name = "ORIGIN:" + origin;
+  }
   if (killed_lens_fresnel)
     proc_name = "KilledLensFresnelReflection";
   if (selected_death)

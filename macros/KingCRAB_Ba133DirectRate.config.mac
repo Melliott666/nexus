@@ -1,0 +1,64 @@
+## ----------------------------------------------------------------------------
+## nexus | KingCRAB_Ba133DirectRate.config.mac
+##
+## High-statistics, thinned-optics Ba-133 direct-light configuration
+##
+## The NEXT Collaboration
+## ----------------------------------------------------------------------------
+
+# VERBOSITY
+/run/verbose 0
+/event/verbose 0
+/tracking/verbose 0
+/process/em/verbose 0
+
+# SOURCE
+# First-pass Ba-133 model: one isotropic 356 keV gamma per simulated event.
+# Physical rates must include the 356 keV emission probability per decay.
+/Generator/SingleParticle/region AD_HOC
+/Generator/SingleParticle/particle gamma
+/Generator/SingleParticle/min_energy 356 keV
+/Generator/SingleParticle/max_energy 356 keV
+/Geometry/KingCRAB/specific_vertex_ 0 -231 1250 mm
+
+# ARGON AND ELECTRIC FIELDS
+/Geometry/KingCRAB/gastype argon
+/Geometry/KingCRAB/gas_pressure 1 bar
+/Geometry/KingCRAB/max_step_size 1 mm
+/Geometry/KingCRAB/drift_field_on true
+/Geometry/KingCRAB/el_field_on true
+/Geometry/KingCRAB/EL_field_intensity 900 kV/m
+
+# DIRECT-LIGHT GEOMETRY
+# Removes both lenses, both sleeves, both mirrors, both mirror baffles, the
+# focal cylinder, the steel II endcap and any detector window. A transparent
+# 25.4 mm diameter GAS scoring plane is placed immediately inside the nominal
+# far-side face of the omitted II endcap.
+/Geometry/KingCRAB/direct_light_search true
+
+# OPTICAL SAMPLING
+# Keep the configured 25,510 photons/MeV argon S1 yield unthinned. At 1 bar
+# only a small fraction of 356 keV gammas interact, so full S1 statistics are
+# inexpensive compared with S2.
+/Geometry/KingCRAB/sc_yield 25510 1/MeV
+
+/PhysicsList/Nexus/clustering           true
+/PhysicsList/Nexus/drift                true
+/PhysicsList/Nexus/electroluminescence  true
+
+# Record and stop only photons entering the direct scoring disk. Creator
+# process labels in /DEBUG/steps distinguish Scintillation (S1) from
+# Electroluminescence (S2).
+/Actions/SaveAllSteppingAction/select_particle opticalphoton
+/Actions/SaveAllSteppingAction/select_volume II_ONE_INCH_SCORE
+/Actions/SaveAllSteppingAction/kill_after_selection true
+/Actions/SaveAllSteppingAction/kill_lens_fresnel_reflections false
+/Actions/SaveAllSteppingAction/record_selected_track_deaths false
+
+# PERSISTENCY
+/nexus/random_seed 23
+/nexus/persistency/start_id 0
+/nexus/persistency/output_file KingCRAB_Ba133_356keV_Ar1bar_DirectRate
+# The primary count is stored as num_events in /MC/configuration. Suppressing
+# particle trajectories keeps a high-count rate run compact.
+/nexus/persistency/save_particles false
