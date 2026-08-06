@@ -84,6 +84,11 @@ namespace nexus {
           el_region_set_ = true;
         }
 
+        void SetELDriftVelocity(G4double velocity)
+        {
+          el_drift_velocity_ = velocity;
+        }
+
         G4double GetTotalDriftLength() const override
         {
           if (LightYield() > 0. && el_region_set_)
@@ -102,14 +107,23 @@ namespace nexus {
           G4double el_max = std::max(el_anode_pos_, el_cathode_pos_);
           G4double z = el_min + G4UniformRand() * (el_max - el_min);
 
-          G4double fraction = 0.;
-          if (end.z() != origin.z())
-            fraction = (z - origin.z()) / (end.z() - origin.z());
-
-          G4ThreeVector position = origin.vect() + fraction * (end.vect() - origin.vect());
+          // The fast drift puts the post-step point at the diffused charge
+          // arrival coordinate. Keep that x-y throughout the short EL gap;
+          // extrapolating the full drift segment can move photons far outside
+          // the physical charge column.
+          G4ThreeVector position = end.vect();
           position.setZ(z);
 
-          G4double time = origin.t() + fraction * (end.t() - origin.t());
+          // Work backward from the anode-arrival time at the configured EL
+          // drift velocity. Clamp against the parent step as protection from
+          // roundoff at either field boundary: a secondary may never precede
+          // its parent's pre-step time or follow its post-step time.
+          G4double time = end.t();
+          if (el_drift_velocity_ > 0.)
+            time -= std::abs(z - el_anode_pos_) / el_drift_velocity_;
+          G4double time_min = std::min(origin.t(), end.t());
+          G4double time_max = std::max(origin.t(), end.t());
+          time = std::max(time_min, std::min(time, time_max));
           return G4LorentzVector(position, time);
         }
 
@@ -117,6 +131,7 @@ namespace nexus {
         G4bool el_region_set_ = false;
         G4double el_anode_pos_ = 0.;
         G4double el_cathode_pos_ = 0.;
+        G4double el_drift_velocity_ = 0.;
     };
 
 
@@ -447,6 +462,7 @@ namespace nexus {
                     XenonELLightYield(el_field_int_, gas_pressure_);
                 drift_field->SetLightYield(yield);
                 drift_field->SetELRegion(z_anode_el_face_global, z_gate_el_face_global);
+                drift_field->SetELDriftVelocity(EL_drift_v_);
             }
 
             G4Region* drift_region = new G4Region("DRIFT");
