@@ -5,14 +5,13 @@
 /process/em/verbose 0
 
 # TRANSVERSE TRACK
-# A 1 GeV mu- is approximately minimum-ionizing and crosses the detector in x.
-# Starting well inside the active radius produces a long x-y trail rather than
-# the nearly point-like optical projection of the z-directed alpha test.
+# A 1 GeV mu- is approximately minimum-ionizing. Give it both x and y
+# components so its projected trail is diagonal rather than horizontal.
 /Generator/SingleParticle/particle mu-
 /Generator/SingleParticle/min_energy 1 GeV
 /Generator/SingleParticle/max_energy 1 GeV
 /Generator/SingleParticle/region AD_HOC
-/Generator/SingleParticle/momentum 1 0 0
+/Generator/SingleParticle/momentum 1 0.6 0
 
 # PHYSICS
 /PhysicsList/Nexus/clustering           true
@@ -22,7 +21,7 @@
 # GEOMETRY
 /Geometry/KingCRAB/gas_pressure 5 bar
 /Geometry/KingCRAB/max_step_size 2 mm
-/Geometry/KingCRAB/specific_vertex_ -150 0 400 mm
+/Geometry/KingCRAB/specific_vertex_ -130 -78 400 mm
 /Geometry/KingCRAB/EL_field_intensity 900 kV/m
 
 # OPTICAL AND CHARGE DIAGNOSTICS
