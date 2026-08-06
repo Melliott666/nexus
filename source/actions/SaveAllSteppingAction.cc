@@ -79,7 +79,7 @@ recorded_el_electron_ids_()
 
   msg_->DeclareProperty(
     "record_el_electron_entries", record_el_electron_entries_,
-    "Record each ionization electron when it first reaches the EL gap");
+    "Record each ionization electron on its EL-photon-producing drift step");
 
   PersistencyManager* pm = dynamic_cast<PersistencyManager*>
         (G4VPersistencyManager::GetPersistencyManager());
@@ -134,8 +134,22 @@ void SaveAllSteppingAction::UserSteppingAction(const G4Step* step)
   G4String final_volume = final_physical ? final_physical->GetName()
                                          : "OUT_OF_WORLD";
 
-  G4bool in_el_gap = initial_volume == "EL_GAP" || final_volume == "EL_GAP";
-  G4bool first_el_entry = consider_el_entry && in_el_gap &&
+  // KingCRAB's fast drift transports an ionization electron directly to the
+  // anode in one step and generates EL photons at sampled points along that
+  // drift line. It therefore need not expose EL_GAP as either touchable. Use
+  // the presence of optical secondaries to identify the EL-producing step;
+  // its post-step x-y is the diffused charge-arrival coordinate.
+  G4bool produced_el_photons = false;
+  const auto* secondaries = step->GetSecondaryInCurrentStep();
+  if (consider_el_entry && secondaries) {
+    for (const G4Track* secondary : *secondaries) {
+      if (secondary->GetDefinition() == G4OpticalPhoton::Definition()) {
+        produced_el_photons = true;
+        break;
+      }
+    }
+  }
+  G4bool first_el_entry = consider_el_entry && produced_el_photons &&
                           !recorded_el_electron_ids_.count(track_id);
   if (first_el_entry)
     recorded_el_electron_ids_.insert(track_id);
