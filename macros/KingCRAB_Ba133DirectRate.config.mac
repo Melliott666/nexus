@@ -1,7 +1,7 @@
 ## ----------------------------------------------------------------------------
 ## nexus | KingCRAB_Ba133DirectRate.config.mac
 ##
-## High-statistics, thinned-optics Ba-133 direct-light configuration
+## Ba-133 direct-light configuration with native optical yields
 ##
 ## The NEXT Collaboration
 ## ----------------------------------------------------------------------------
@@ -36,10 +36,10 @@
 # far-side face of the omitted II endcap.
 /Geometry/KingCRAB/direct_light_search true
 
-# OPTICAL SAMPLING
-# Keep the configured 25,510 photons/MeV argon S1 yield unthinned. At 1 bar
-# only a small fraction of 356 keV gammas interact, so full S1 statistics are
-# inexpensive compared with S2.
+# OPTICAL PRODUCTION
+# Generate the configured S1 yield without thinning. S2 production is also
+# unthinned and is calculated natively from the argon gas pressure, EL field
+# and EL-gap length by ArgonELLightYield.
 /Geometry/KingCRAB/sc_yield 25510 1/MeV
 
 /PhysicsList/Nexus/clustering           true

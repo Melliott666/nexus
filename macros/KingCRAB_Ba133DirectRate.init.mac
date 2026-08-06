@@ -24,4 +24,3 @@
 /nexus/RegisterSteppingAction SaveAllSteppingAction
 
 /nexus/RegisterMacro macros/KingCRAB_Ba133DirectRate.config.mac
-/nexus/RegisterDelayedMacro macros/KingCRAB_Ba133DirectRate.physics.mac
