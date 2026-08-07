@@ -1,0 +1,10 @@
+## KingCRAB cosmogenic muons: drift and EL fields enabled.
+
+/control/execute macros/KingCRAB_CosmogenicMuon.common.mac
+
+/Geometry/KingCRAB/drift_field_on true
+/Geometry/KingCRAB/el_field_on true
+/Geometry/KingCRAB/EL_field_intensity 900 kV/m
+
+/nexus/random_seed 41
+/nexus/persistency/output_file KingCRAB_CosmogenicMuon_FieldOn

@@ -1,0 +1,11 @@
+## KingCRAB cosmogenic muons: drift and EL fields disabled (S1 only).
+
+/control/execute macros/KingCRAB_CosmogenicMuon.common.mac
+
+/Geometry/KingCRAB/drift_field_on false
+/Geometry/KingCRAB/el_field_on false
+/Geometry/KingCRAB/EL_field_intensity 0 kV/m
+
+# Match the field-on seed so paired runs begin from the same random stream.
+/nexus/random_seed 41
+/nexus/persistency/output_file KingCRAB_CosmogenicMuon_FieldOff

@@ -1,0 +1,34 @@
+## Shared bare-sky cosmogenic-muon and direct-light configuration.
+
+# Guan--Gaisser spectrum, with trajectories conditioned to cross the active
+# cathode-to-EL cylinder. Global -y is vertically downward and the cylinder
+# axis is global z.
+/Generator/CosmogenicMuon/min_energy 10 MeV
+/Generator/CosmogenicMuon/max_energy 100 TeV
+/Generator/CosmogenicMuon/positive_fraction 0.56
+/Generator/CosmogenicMuon/target_radius 160 mm
+/Generator/CosmogenicMuon/target_length 841.688 mm
+/Generator/CosmogenicMuon/target_center 0 0 424.474 mm
+/Generator/CosmogenicMuon/generation_distance 800 mm
+/Generator/CosmogenicMuon/paired_event_seeds true
+/Generator/CosmogenicMuon/base_seed 410000
+
+/Geometry/KingCRAB/gastype argon
+/Geometry/KingCRAB/gas_pressure 1 bar
+/Geometry/KingCRAB/max_step_size 2 mm
+/Geometry/KingCRAB/direct_light_search true
+/Geometry/KingCRAB/sc_yield 25510 1/MeV
+
+/PhysicsList/Nexus/clustering           true
+/PhysicsList/Nexus/drift                true
+/PhysicsList/Nexus/electroluminescence  true
+
+# Record and stop S1/S2 photons at the ideal one-inch no-periscope plane.
+/Actions/SaveAllSteppingAction/select_particle opticalphoton
+/Actions/SaveAllSteppingAction/select_volume II_ONE_INCH_SCORE
+/Actions/SaveAllSteppingAction/kill_after_selection true
+/Actions/SaveAllSteppingAction/record_selected_track_deaths false
+/Actions/DefaultTrackingAction/primary_only true
+
+/nexus/persistency/start_id 0
+/nexus/persistency/save_particles true

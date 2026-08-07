@@ -1,0 +1,16 @@
+## KingCRAB bare-sky cosmogenic muons with electric fields enabled.
+
+/PhysicsList/RegisterPhysics G4EmStandardPhysics_option4
+/PhysicsList/RegisterPhysics G4DecayPhysics
+/PhysicsList/RegisterPhysics G4RadioactiveDecayPhysics
+/PhysicsList/RegisterPhysics NexusPhysics
+/PhysicsList/RegisterPhysics G4StepLimiterPhysics
+/PhysicsList/RegisterPhysics G4OpticalPhysics
+
+/nexus/RegisterGeometry KingCRAB
+/nexus/RegisterGenerator CosmogenicMuonGenerator
+/nexus/RegisterPersistencyManager PersistencyManager
+/nexus/RegisterRunAction DefaultRunAction
+/nexus/RegisterTrackingAction DefaultTrackingAction
+/nexus/RegisterSteppingAction SaveAllSteppingAction
+/nexus/RegisterMacro macros/KingCRAB_CosmogenicMuon_FieldOn.config.mac
