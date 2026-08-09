@@ -312,9 +312,6 @@ namespace nexus {
         G4double detector_hole_xpos = -8.255*cm;
         G4double detector_hole_ypos = 14.3002*cm;
 
-        // Keep Boolean boundaries separated from the gas passage. Coincident
-        // cylindrical surfaces are numerically ambiguous to the navigator and
-        // were reported as a 100 um GAS/ENDCAP_PLUS overlap.
         G4double gas_clearance = 0.1*mm;
 
         G4Tubs* endcap_solid = new G4Tubs("ENDCAP", 0., flange_diam/2.0, endcap_thick/2.0, 0, twopi);
@@ -502,10 +499,7 @@ namespace nexus {
         // --------------------------
         // EL Mesh Placements
         // --------------------------
-        // TEMPORARY MESH-IMAGE DIAGNOSTIC:
-        // Leave both hexagonal EL meshes defined above, but do not place them.
-        // The EL field and photon production remain active. This isolates
-        // whether mesh transmission produces the hexagonal after-image edge.
+        // Temporarily Disabled for Diagnostic Purposes
         // new G4PVPlacement(0, G4ThreeVector(0., 0., z_anode_mesh), EL_grid_logic, "EL_MESH_ANODE", gas_logic, false, 0, false);
         // new G4PVPlacement(pRot, G4ThreeVector(0., 0., z_gate_mesh), EL_grid_logic, "EL_MESH_GATE", gas_logic, false, 1, false);
 
@@ -730,9 +724,9 @@ namespace nexus {
 
         G4RotationMatrix* image_intensifier_rot = nullptr;
         // The virtual focal scan found the compact-image focus at global
-        // z ~= 1449.4 mm. Place the upstream detector face on that plane;
+        // z ~= 1443 mm. Place the upstream detector face on that plane;
         // the G4Tubs placement coordinate is its centre.
-        G4double image_intensifier_focal_plane_global = 1449.4*mm;
+        G4double image_intensifier_focal_plane_global = 1443*mm;
         G4double image_intensifier_zpos =
             image_intensifier_focal_plane_global
             + image_intensifier_thick/2.0 - z_shift;
@@ -790,9 +784,7 @@ namespace nexus {
         // --------------------------
         // Temporary Transparent Focal-Scan Cylinder
         // --------------------------
-        // This is a daughter of GAS made from the exact same GAS material. It
-        // has no optical surface or sensitive detector, so it does not absorb,
-        // reflect, or refract optical photons. Its only purpose is to identify
+        // Its only purpose is to identify
         // steps in the focal region for SaveAllSteppingAction. Crossings of any
         // desired z plane can then be interpolated from /DEBUG/steps.
         #if 1 // FOCAL-SCAN MODE: transparent z-depth cylinder enabled.
@@ -801,7 +793,6 @@ namespace nexus {
         // to reveal rays that miss the II and must not be interpreted as the
         // detector's active or accepted area.
         G4double focal_scan_radius = 100.*mm;
-        // Diagnostic depth requested for conventional 2D focal-plane slices.
         G4double focal_scan_z_min_global = 1430.*mm;
         G4double focal_scan_z_max_global = 1450.*mm;
         G4double focal_scan_length =
@@ -841,8 +832,11 @@ namespace nexus {
             G4double direct_score_thick = 10.*um;
             G4double II_endcap_far_z_global =
                 II_zpos + II_length/2.0 + vessel_thickn;
+            // Move the direct-light detector from the outside end of the II
+            // to the mesh-side end: one complete II length toward -z.
             G4double direct_score_zpos = II_endcap_far_z_global - z_shift
-                                       - direct_score_thick/2.0;
+                                       - direct_score_thick/2.0
+                                       - II_length;
 
             G4Tubs* direct_score_solid =
                 new G4Tubs("II_ONE_INCH_SCORE", 0., direct_score_radius,
@@ -857,7 +851,7 @@ namespace nexus {
                               gas_logic, false, 0, true);
             G4cout << "Direct-light score plane: center = ("
                    << II_xpos/mm << ", " << II_ypos/mm << ", "
-                   << (II_endcap_far_z_global - direct_score_thick/2.0)/mm
+                   << (z_shift + direct_score_zpos)/mm
                    << ") mm; diameter = " << 2.*direct_score_radius/mm
                    << " mm" << G4endl;
         }
@@ -952,8 +946,24 @@ namespace nexus {
         G4LogicalVolume* ImageIntensifier = lvStore->GetVolume("Image-Intensifier");
         if (ImageIntensifier) ImageIntensifier->SetVisAttributes(ImageIntensifierVa);
 
-        G4LogicalVolume* DirectScore = lvStore->GetVolume("II_ONE_INCH_SCORE");
-        if (DirectScore) DirectScore->SetVisAttributes(ImageIntensifierVa);
+        // Scoring planes are physically only 10 um thick.  Give them their
+        // own opaque, high-contrast style and force the circular edge to be
+        // drawn so that they remain identifiable in an otherwise crowded
+        // detector view.  These attributes affect visualization only.
+        auto* PhotonScoreVa =
+            new G4VisAttributes(G4Colour(1.0, 0.0, 1.0, 1.0));
+        PhotonScoreVa->SetForceSolid(true);
+        PhotonScoreVa->SetForceAuxEdgeVisible(true);
+        PhotonScoreVa->SetForceLineSegmentsPerCircle(96);
+
+        G4LogicalVolume* DirectScore =
+            lvStore->GetVolume("II_ONE_INCH_SCORE");
+        if (DirectScore) DirectScore->SetVisAttributes(PhotonScoreVa);
+
+        G4LogicalVolume* PhotocathodeScore =
+            lvStore->GetVolume("II_PHOTOCATHODE_SCORE", false);
+        if (PhotocathodeScore)
+            PhotocathodeScore->SetVisAttributes(PhotonScoreVa);
 
         G4VisAttributes *FieldRingVa=new G4VisAttributes(nexus::CopperBrownAlpha());
         FieldRingVa->SetForceSolid(true);
@@ -970,6 +980,24 @@ namespace nexus {
 
         G4LogicalVolume* ELGap = lvStore->GetVolume("EL_GAP");
         if (ELGap) ELGap->SetVisAttributes(GasVa);
+
+        // Mesh mother disks and their gas-filled hexagons need separate
+        // attributes; otherwise the hexagonal structure inherits an
+        // indistinguishable default style when the meshes are enabled.
+        auto* MeshVa =
+            new G4VisAttributes(G4Colour(0.95, 0.75, 0.05, 1.0));
+        MeshVa->SetForceSolid(true);
+        MeshVa->SetForceAuxEdgeVisible(true);
+        MeshVa->SetForceLineSegmentsPerCircle(96);
+        G4LogicalVolume* ELMesh = lvStore->GetVolume("EL_GRID");
+        if (ELMesh) ELMesh->SetVisAttributes(MeshVa);
+
+        auto* MeshGasVa =
+            new G4VisAttributes(G4Colour(0.1, 0.9, 0.9, 0.35));
+        MeshGasVa->SetForceSolid(true);
+        MeshGasVa->SetForceAuxEdgeVisible(true);
+        G4LogicalVolume* MeshGas = lvStore->GetVolume("MESH_HEX_GAS");
+        if (MeshGas) MeshGas->SetVisAttributes(MeshGasVa);
 
         G4VisAttributes *StaveVa =new G4VisAttributes(nexus::WhiteAlpha());
         StaveVa-> SetForceSolid(true);
@@ -1003,6 +1031,17 @@ namespace nexus {
         MirrorBaffleVa->SetForceSolid(true);
         G4LogicalVolume* MirrorBaffle = lvStore->GetVolume("MIRROR_BAFFLE");
         if (MirrorBaffle) MirrorBaffle->SetVisAttributes(MirrorBaffleVa);
+
+        // The diagnostic focal volume is transparent cyan.  It is distinct
+        // from the opaque magenta photon-score disk and from the blue GAS
+        // mother volume.
+        auto* FocalScanVa =
+            new G4VisAttributes(G4Colour(0.0, 1.0, 1.0, 0.15));
+        FocalScanVa->SetForceSolid(true);
+        FocalScanVa->SetForceAuxEdgeVisible(true);
+        FocalScanVa->SetForceLineSegmentsPerCircle(96);
+        G4LogicalVolume* FocalScan = lvStore->GetVolume("FOCAL_SCAN");
+        if (FocalScan) FocalScan->SetVisAttributes(FocalScanVa);
 
         auto* ELVa = new G4VisAttributes(G4Colour(0.0, 1.0, 0.0, 1.0));
         ELVa->SetForceSolid(true);
