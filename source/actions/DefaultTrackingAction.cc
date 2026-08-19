@@ -17,7 +17,6 @@
 #include "FactoryBase.h"
 
 #include <G4Track.hh>
-#include <G4GenericMessenger.hh>
 #include <G4TrackingManager.hh>
 #include <G4Trajectory.hh>
 #include <G4ParticleDefinition.hh>
@@ -27,28 +26,16 @@ using namespace nexus;
 
 REGISTER_CLASS(DefaultTrackingAction, G4UserTrackingAction)
 
-DefaultTrackingAction::DefaultTrackingAction() :
-  G4UserTrackingAction(), msg_(nullptr), primary_only_(false)
+DefaultTrackingAction::DefaultTrackingAction() : G4UserTrackingAction()
 {
-  msg_ = new G4GenericMessenger(
-    this, "/Actions/DefaultTrackingAction/",
-    "Control storage of ordinary particle trajectories.");
-  msg_->DeclareProperty(
-    "primary_only", primary_only_,
-    "Store only primary-particle trajectories when true.");
 }
 
 DefaultTrackingAction::~DefaultTrackingAction()
 {
-  delete msg_;
 }
 
 void DefaultTrackingAction::PreUserTrackingAction(const G4Track *track)
 {
-  if (primary_only_ && track->GetParentID() != 0) {
-    fpTrackingManager->SetStoreTrajectory(false);
-    return;
-  }
   // Do nothing if the track is an optical photon or an ionization electron
   if (track->GetDefinition() == G4OpticalPhoton::Definition() ||
       track->GetDefinition() == IonizationElectron::Definition())
@@ -71,7 +58,6 @@ void DefaultTrackingAction::PreUserTrackingAction(const G4Track *track)
 
 void DefaultTrackingAction::PostUserTrackingAction(const G4Track *track)
 {
-  if (primary_only_ && track->GetParentID() != 0) return;
   // Do nothing if the track is an optical photon or an ionization electron
   if (track->GetDefinition() == G4OpticalPhoton::Definition() ||
       track->GetDefinition() == IonizationElectron::Definition())

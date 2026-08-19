@@ -15,7 +15,6 @@
 #include <G4UserTrackingAction.hh>
 
 class G4Track;
-class G4GenericMessenger;
 
 
 namespace nexus {
@@ -32,10 +31,6 @@ namespace nexus {
 
     virtual void PreUserTrackingAction(const G4Track*);
     virtual void PostUserTrackingAction(const G4Track*);
-
-  private:
-    G4GenericMessenger* msg_;
-    bool primary_only_;
   };
 
 }

@@ -64,76 +64,12 @@
 #include <CLHEP/Units/PhysicalConstants.h>
 #include <CLHEP/Units/SystemOfUnits.h>
 
-#include <algorithm>
 #include <cmath>
 
 
 namespace nexus {
     using namespace CLHEP;
     REGISTER_CLASS(KingCRAB, GeometryBase)
-
-    class KingCRABDriftField: public UniformElectricDriftField
-    {
-      public:
-        using UniformElectricDriftField::UniformElectricDriftField;
-
-        void SetELRegion(G4double anode, G4double cathode)
-        {
-          el_anode_pos_ = anode;
-          el_cathode_pos_ = cathode;
-          el_region_set_ = true;
-        }
-
-        void SetELDriftVelocity(G4double velocity)
-        {
-          el_drift_velocity_ = velocity;
-        }
-
-        G4double GetTotalDriftLength() const override
-        {
-          if (LightYield() > 0. && el_region_set_)
-            return std::abs(el_cathode_pos_ - el_anode_pos_);
-
-          return UniformElectricDriftField::GetTotalDriftLength();
-        }
-
-        G4LorentzVector GeneratePointAlongDriftLine(const G4LorentzVector& origin,
-                                                    const G4LorentzVector& end) override
-        {
-          if (LightYield() <= 0. || !el_region_set_)
-            return UniformElectricDriftField::GeneratePointAlongDriftLine(origin, end);
-
-          G4double el_min = std::min(el_anode_pos_, el_cathode_pos_);
-          G4double el_max = std::max(el_anode_pos_, el_cathode_pos_);
-          G4double z = el_min + G4UniformRand() * (el_max - el_min);
-
-          // The fast drift puts the post-step point at the diffused charge
-          // arrival coordinate. Keep that x-y throughout the short EL gap;
-          // extrapolating the full drift segment can move photons far outside
-          // the physical charge column.
-          G4ThreeVector position = end.vect();
-          position.setZ(z);
-
-          // Work backward from the anode-arrival time at the configured EL
-          // drift velocity. Clamp against the parent step as protection from
-          // roundoff at either field boundary: a secondary may never precede
-          // its parent's pre-step time or follow its post-step time.
-          G4double time = end.t();
-          if (el_drift_velocity_ > 0.)
-            time -= std::abs(z - el_anode_pos_) / el_drift_velocity_;
-          G4double time_min = std::min(origin.t(), end.t());
-          G4double time_max = std::max(origin.t(), end.t());
-          time = std::max(time_min, std::min(time, time_max));
-          return G4LorentzVector(position, time);
-        }
-
-      private:
-        G4bool el_region_set_ = false;
-        G4double el_anode_pos_ = 0.;
-        G4double el_cathode_pos_ = 0.;
-        G4double el_drift_velocity_ = 0.;
-    };
-
 
     KingCRAB::KingCRAB():
         GeometryBase(),
@@ -183,7 +119,7 @@ namespace nexus {
         msg_->DeclarePropertyWithUnit("specific_vertex_", "mm",  specific_vertex_, "Set generation vertex.");
 
         msg_->DeclareProperty("direct_light_search", direct_light_search_,
-                              "Remove the periscope and score direct light at the II endcap.");
+                              "Remove the periscope optics and score direct light in the II while retaining its endcap.");
 
         msg_->DeclareProperty("drift_field_on", drift_field_on_, "Turn drift field on/off.");
 
@@ -354,17 +290,14 @@ namespace nexus {
 
         G4UnionSolid* gas_plus_hole_solid = new G4UnionSolid("GAS_PLUS_DETECTOR_HOLE", gas_main_solid, detector_hole_gas_solid, 0, G4ThreeVector(detector_hole_xpos, detector_hole_ypos, detector_hole_gas_zpos));
 
-        // In normal optical mode the gas ends at the inner face of the II
-        // endcap. The idealized direct-light search removes that endcap and
-        // window, and extends gas to the endcap's nominal far-side plane.
-        G4double direct_light_extension =
-            direct_light_search_ ? vessel_thickn : 0.;
-        G4double II_gas_length = II_length + direct_light_extension;
+        // Keep the II gas boundary, endcap, and window geometry unchanged in
+        // direct-light mode. That mode removes only the periscope optics and
+        // adds a virtual photon-scoring plane inside the existing gas volume.
+        G4double II_gas_length = II_length;
         G4Tubs* II_gas_solid =
             new G4Tubs("II_REGION_GAS_SOLID", 0., II_IR,
                        II_gas_length/2.0, 0, twopi);
-        G4double II_gas_zpos = II_zpos - z_shift
-                             + direct_light_extension/2.0;
+        G4double II_gas_zpos = II_zpos - z_shift;
 
         G4UnionSolid* gas_solid = new G4UnionSolid("GAS", gas_plus_hole_solid, II_gas_solid, 0, G4ThreeVector(II_xpos, II_ypos, II_gas_zpos));
 
@@ -436,35 +369,42 @@ namespace nexus {
 
 
         // --------------------------
+        // Active Drift Volume
+        // --------------------------
+        // Match the NEXT-100 field architecture: the main drift field belongs
+        // only to this gas daughter. Its anode coordinate lies just beyond the
+        // active-volume boundary at the EL-gate face, allowing the standard
+        // UniformElectricDriftField 1 um safety margin to relocate charge into
+        // the separate EL_GAP region.
+        G4Tubs* active_solid =
+            new G4Tubs("ACTIVE", 0., cathode_ring_ID/2.,
+                       active_length/2., 0., twopi);
+        G4LogicalVolume* active_logic =
+            new G4LogicalVolume(active_solid, GAS, "ACTIVE");
+        new G4PVPlacement(0, G4ThreeVector(0., 0., active_zpos),
+                          active_logic, "ACTIVE", gas_logic,
+                          false, 0, true);
+        active_logic->SetSensitiveDetector(gasSD);
+        active_logic->SetUserLimits(new G4UserLimits(max_step_size_));
+
+
+        // --------------------------
         // Drift Field
-        // CRAB0-style: attach the drift field to the full GAS logical volume.
-        // The z positions still restrict the drift range, but the region root is GAS.
-        // If the EL field is enabled, this KingCRAB-local field carries charge
-        // through the EL gap and reports EL photons only over the gap length.
+        // This field transports charge only. Electroluminescence is owned by
+        // the independent field attached to EL_GAP below.
         // --------------------------
         if (drift_field_on_) {
-            KingCRABDriftField* drift_field = new KingCRABDriftField();
+            UniformElectricDriftField* drift_field =
+                new UniformElectricDriftField();
 
             drift_field->SetCathodePosition(z_active_max_global);
-            G4double drift_anode_pos =
-                (el_field_on_ && el_field_int_ > 0.) ? z_anode_el_face_global
-                                                      : z_gate_el_face_global;
-            drift_field->SetAnodePosition(drift_anode_pos);
+            drift_field->SetAnodePosition(z_gate_el_face_global);
             drift_field->SetDriftVelocity(drift_v_);
             drift_field->SetLifetime(drift_e_lifetime_);
 
-            if (el_field_on_ && el_field_int_ > 0.) {
-                G4double yield = gastype_ == "argon" ?
-                    ArgonELLightYield(el_field_int_, gas_pressure_) :
-                    XenonELLightYield(el_field_int_, gas_pressure_);
-                drift_field->SetLightYield(yield);
-                drift_field->SetELRegion(z_anode_el_face_global, z_gate_el_face_global);
-                drift_field->SetELDriftVelocity(EL_drift_v_);
-            }
-
             G4Region* drift_region = new G4Region("DRIFT");
             drift_region->SetUserInformation(drift_field);
-            drift_region->AddRootLogicalVolume(gas_logic);
+            drift_region->AddRootLogicalVolume(active_logic);
         }
 
 
@@ -732,18 +672,11 @@ namespace nexus {
             + image_intensifier_thick/2.0 - z_shift;
         G4ThreeVector image_intensifier_pos(II_xpos, II_ypos, image_intensifier_zpos);
 
-        #if 0 // FOCAL-SCAN MODE: absorbing II disabled so rays cross all z planes.
-        new G4PVPlacement(image_intensifier_rot, image_intensifier_pos,
-                          image_intensifier_logic,
-                          "II_PHOTOCATHODE",
-                          gas_logic, false, 0, true);
-
-        // Thin transparent scoring disk directly in front of the absorbing
-        // photocathode. An optical photon can be absorbed at the photocathode
-        // boundary before its post-step touchable becomes II_PHOTOCATHODE, so
-        // SaveAllSteppingAction would otherwise record no detector entries.
-        // This GAS-in-GAS boundary provides the same non-perturbing crossing
-        // mechanism validated by the temporary focal-scan cylinder.
+        // The absorbing image-intensifier solid is intentionally not placed:
+        // the normal periscope configuration uses a transparent scoring plane
+        // at its focal surface so photons can also traverse the focal-scan
+        // cylinder. The score plane is placed below as a daughter of that
+        // cylinder to avoid overlapping GAS-in-GAS sibling volumes.
         G4double ii_score_thick = 10.*um;
         G4Tubs* ii_score_solid =
             new G4Tubs("II_PHOTOCATHODE_SCORE", 0.,
@@ -755,11 +688,6 @@ namespace nexus {
         G4double ii_score_zpos = image_intensifier_zpos
                                - image_intensifier_thick/2.0
                                - ii_score_thick/2.0;
-        new G4PVPlacement(nullptr,
-                          G4ThreeVector(II_xpos, II_ypos, ii_score_zpos),
-                          ii_score_logic, "II_PHOTOCATHODE_SCORE",
-                          gas_logic, false, 0, true);
-        #endif
 
         G4double II_lens_from_image_intensifier = 68.405974*mm;
         // Preserve the second-lens position used to produce the focal scan.
@@ -787,7 +715,6 @@ namespace nexus {
         // Its only purpose is to identify
         // steps in the focal region for SaveAllSteppingAction. Crossings of any
         // desired z plane can then be interpolated from /DEBUG/steps.
-        #if 1 // FOCAL-SCAN MODE: transparent z-depth cylinder enabled.
         // DIAGNOSTIC OVERSIZE: this 100 mm radius is intentionally much
         // larger than the physical 25.4 mm II aperture. It is only intended
         // to reveal rays that miss the II and must not be interpreted as the
@@ -813,20 +740,32 @@ namespace nexus {
         // limiting output size across the enlarged 20 mm diagnostic depth.
         focal_scan_logic->SetUserLimits(new G4UserLimits(0.25*mm));
 
-        if (!direct_light_search_)
+        if (!direct_light_search_) {
             new G4PVPlacement(0,
                               G4ThreeVector(II_xpos, II_ypos, focal_scan_zpos),
                               focal_scan_logic, "FOCAL_SCAN", gas_logic,
                               false, 0, true);
-        #endif
+
+            // The normal periscope mode contains both diagnostic detectors:
+            // the full focal-scan cylinder and this thin plane at the focused
+            // image-intensifier surface. Since the plane is a daughter of the
+            // cylinder, its z coordinate is relative to the cylinder centre.
+            G4double ii_score_z_in_focal_scan =
+                ii_score_zpos - focal_scan_zpos;
+            new G4PVPlacement(nullptr,
+                              G4ThreeVector(0., 0.,
+                                            ii_score_z_in_focal_scan),
+                              ii_score_logic, "II_PHOTOCATHODE_SCORE",
+                              focal_scan_logic, false, 0, true);
+        }
 
 
         // --------------------------
         // Direct-Light One-Inch Scoring Plane
         // --------------------------
-        // The plane is immediately inside the nominal far-side face of the
-        // omitted II endcap. It is GAS in GAS and has no optical surface, so
-        // it marks photon arrivals without adding a window or refraction.
+        // The plane is GAS in GAS and has no optical surface. It records
+        // photon arrivals without replacing or modifying the physical II
+        // endcap/window geometry.
         if (direct_light_search_) {
             G4double direct_score_radius = 0.5*2.54*cm;
             G4double direct_score_thick = 10.*um;
@@ -884,11 +823,9 @@ namespace nexus {
 
         G4double II_endcap_zpos = II_zpos + II_length/2.0 + II_endcap_thick/2.0;
 
-        // The direct-light search is an idealized no-window measurement at
-        // this endcap's nominal outer face, so the opaque steel disk is not
-        // constructed in that mode.
-        if (!direct_light_search_)
-            new G4PVPlacement(0, G4ThreeVector(II_xpos, II_ypos, II_endcap_zpos), II_endcap_logic, "II_REGION_ENDCAP", lab_logic_volume, false, 0, true);
+        // Retain the physical endcap in direct-light mode. The virtual score
+        // plane changes only what is recorded, not the II material boundary.
+        new G4PVPlacement(0, G4ThreeVector(II_xpos, II_ypos, II_endcap_zpos), II_endcap_logic, "II_REGION_ENDCAP", lab_logic_volume, false, 0, true);
         new G4LogicalSkinSurface("GAS_II_REGION_ENDCAP_OPSURF", II_endcap_logic, gas_steel_opsur);
 
 
