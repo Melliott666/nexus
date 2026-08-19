@@ -34,13 +34,7 @@
 /Actions/SaveAllSteppingAction/select_volume FS_LENS
 /Actions/SaveAllSteppingAction/select_volume Image-Intensifier-FS-Lens
 /Actions/SaveAllSteppingAction/select_volume MIRROR
-# Preserve ordinary Geant4 Fresnel reflection and transmission at both lenses.
-/Actions/SaveAllSteppingAction/kill_lens_fresnel_reflections false
 /Actions/SaveAllSteppingAction/kill_after_selection false
-/Actions/SaveAllSteppingAction/record_selected_track_deaths false
-# Save one point per ionization electron on its first step at the EL gap. The
-# electron may subsequently cross the gap while producing EL photons.
-/Actions/SaveAllSteppingAction/record_el_electron_entries true
 
 # PERSISTENCY
 /nexus/random_seed 19

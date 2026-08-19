@@ -35,12 +35,7 @@
 /Actions/SaveAllSteppingAction/select_volume FS_LENS
 /Actions/SaveAllSteppingAction/select_volume Image-Intensifier-FS-Lens
 /Actions/SaveAllSteppingAction/select_volume MIRROR
-/Actions/SaveAllSteppingAction/kill_lens_fresnel_reflections false
 /Actions/SaveAllSteppingAction/kill_after_selection false
-# Record where photons die only after they have touched one of the selected
-# optical components. This avoids saving terminal rows for the enormous number
-# of isotropic photons that never enter the imaging system.
-/Actions/SaveAllSteppingAction/record_selected_track_deaths true
 
 # PERSISTENCY
 /nexus/random_seed            9

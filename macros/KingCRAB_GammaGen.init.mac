@@ -1,7 +1,7 @@
 ## ----------------------------------------------------------------------------
-## nexus | KingCRAB_PhotonGen.init.mac
+## nexus | KingCRAB_GammaGen.init.mac
 ##
-## Initialization macro to generate photons in KingCRAB
+## Initialization macro to simulate complete Ba-133 decays in KingCRAB
 ##
 ## The NEXT Collaboration
 ## ----------------------------------------------------------------------------
@@ -16,11 +16,12 @@
 
 /nexus/RegisterGeometry KingCRAB
 
-/nexus/RegisterGenerator SingleParticleGenerator
+/nexus/RegisterGenerator IonGenerator
 
 /nexus/RegisterPersistencyManager PersistencyManager
 
 /nexus/RegisterRunAction DefaultRunAction
-/nexus/RegisterTrackingAction OpticalTrackingAction
+/nexus/RegisterTrackingAction DefaultTrackingAction
+/nexus/RegisterSteppingAction SaveAllSteppingAction
 
 /nexus/RegisterMacro macros/KingCRAB_GammaGen.config.mac

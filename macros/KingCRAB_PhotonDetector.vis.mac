@@ -1,0 +1,22 @@
+## Focused KingCRAB geometry view for the direct-light photon detector.
+##
+## Start Nexus interactively with the field-off init macro, then run:
+##   /control/execute macros/KingCRAB_PhotonDetector.vis.mac
+##
+## II_ONE_INCH_SCORE is the opaque magenta 25.4 mm disk.  The disk remains
+## physically 10 um thick; only its drawing attributes are emphasized.
+
+/vis/open OGL
+/vis/viewer/set/style surface
+/vis/viewer/set/hiddenEdge true
+/vis/drawVolume
+
+# Look at the circular face from the image-intensifier end of global z.
+/vis/viewer/set/viewpointVector 0 0 1
+
+# Center the view near the off-axis detector opening at
+# x = -82.55 mm and y = +143.002 mm.
+/vis/viewer/panTo -82.55 143.002 mm
+/vis/viewer/zoom 4
+/vis/viewer/set/autoRefresh true
+/vis/viewer/refresh

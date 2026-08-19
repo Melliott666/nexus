@@ -27,8 +27,6 @@
 /Actions/SaveAllSteppingAction/select_particle opticalphoton
 /Actions/SaveAllSteppingAction/select_volume II_ONE_INCH_SCORE
 /Actions/SaveAllSteppingAction/kill_after_selection true
-/Actions/SaveAllSteppingAction/record_selected_track_deaths false
-/Actions/DefaultTrackingAction/primary_only true
 
 /nexus/persistency/start_id 0
 /nexus/persistency/save_particles true
