@@ -13,20 +13,26 @@
 /Generator/CosmogenicMuon/paired_event_seeds true
 /Generator/CosmogenicMuon/base_seed 410000
 
-/Geometry/KingCRAB/gastype argon
-/Geometry/KingCRAB/gas_pressure 1 bar
+/Geometry/KingCRAB/gastype xenon
+/Geometry/KingCRAB/gas_pressure 5 bar
 /Geometry/KingCRAB/max_step_size 2 mm
-/Geometry/KingCRAB/direct_light_search true
+/Geometry/KingCRAB/direct_light_search false
 /Geometry/KingCRAB/sc_yield 25510 1/MeV
 
 /PhysicsList/Nexus/clustering           true
 /PhysicsList/Nexus/drift                true
 /PhysicsList/Nexus/electroluminescence  true
 
-# Record and stop S1/S2 photons at the ideal one-inch no-periscope plane.
+# Record optical-photon boundary steps through the physical periscope.
 /Actions/SaveAllSteppingAction/select_particle opticalphoton
-/Actions/SaveAllSteppingAction/select_volume II_ONE_INCH_SCORE
-/Actions/SaveAllSteppingAction/kill_after_selection true
+/Actions/SaveAllSteppingAction/select_volume MIRROR
+/Actions/SaveAllSteppingAction/select_volume MIRROR2
+/Actions/SaveAllSteppingAction/select_volume FS_LENS
+/Actions/SaveAllSteppingAction/select_volume FS_LENS2
+/Actions/SaveAllSteppingAction/select_volume Image-Intensifier-FS-Lens
+/Actions/SaveAllSteppingAction/select_volume FOCAL_SCAN
+/Actions/SaveAllSteppingAction/select_volume II_PHOTOCATHODE_SCORE
+/Actions/SaveAllSteppingAction/kill_after_selection false
 
 /nexus/persistency/start_id 0
 /nexus/persistency/save_particles true

@@ -529,12 +529,12 @@ namespace nexus {
         // --------------------------
         // Fused Silica Plano-Convex Lens
         // --------------------------
-        G4Material* fs_mat = materials::FusedSilica();
-        fs_mat->SetMaterialPropertiesTable(opticalprops::FusedSilica());
+        G4Material* fs_mat = materials::CaF2();
+        fs_mat->SetMaterialPropertiesTable(opticalprops::CaF2());
 
         G4double Lens_D  = 50.8*mm;
-        G4double Lens_R  = 34.39*mm;
-        G4double Lens_tc = 12.5*mm;
+        G4double Lens_R  = 216.9*mm;
+        G4double Lens_tc = 4.5*mm;
         G4double Lens_a  = Lens_D/2.0;
 
         G4double Lens_zc_shift = Lens_tc/2.0 - Lens_R;
@@ -563,8 +563,38 @@ namespace nexus {
         new G4LogicalSkinSurface("FS_LENS_SLEEVE_ABSORBER",
                                  lens_sleeve_logic, gas_steel_opsur);
 
+        // CaF2 Lens 2: Thorlabs LA5210, 100 mm EFL.  Lens 1 and Lens 2
+        // intentionally have different curvatures and thicknesses.
+        G4double Lens2_R  = 43.4*mm;
+        G4double Lens2_tc = 11.2*mm;
+        G4double Lens2_a  = Lens_D/2.0;
+        G4double Lens2_zc_shift = Lens2_tc/2.0 - Lens2_R;
+        G4Tubs* Lens2_blank = new G4Tubs("FS_LENS2_BLANK", 0., Lens2_a,
+                                         Lens2_tc/2.0, 0., twopi);
+        G4Sphere* Lens2_sphere = new G4Sphere("FS_LENS2_SPHERE", 0., Lens2_R,
+                                               0., twopi, 0., pi);
+        G4Tubs* Lens2_big = new G4Tubs("FS_LENS2_BIG", 0., Lens2_a,
+                                       Lens2_R, 0., twopi);
+        G4SubtractionSolid* Lens2_outside =
+            new G4SubtractionSolid("FS_LENS2_OUTSIDE", Lens2_big, Lens2_sphere,
+                                   0, G4ThreeVector(0., 0., Lens2_zc_shift));
+        G4SubtractionSolid* Lens2_solid =
+            new G4SubtractionSolid("FS_LENS2_SOLID", Lens2_blank, Lens2_outside,
+                                   0, G4ThreeVector(0., 0., 0.));
+        G4LogicalVolume* Lens2_logic =
+            new G4LogicalVolume(Lens2_solid, fs_mat, "FS_LENS2");
+        G4Tubs* lens2_sleeve_solid =
+            new G4Tubs("FS_LENS2_SLEEVE", Lens2_a,
+                       Lens2_a + lens_sleeve_width, Lens2_tc/2.0,
+                       0., twopi);
+        G4LogicalVolume* lens2_sleeve_logic =
+            new G4LogicalVolume(lens2_sleeve_solid, Steel, "FS_LENS2_SLEEVE");
+        new G4LogicalSkinSurface("FS_LENS2_SLEEVE_ABSORBER",
+                                 lens2_sleeve_logic, gas_steel_opsur);
+
         G4double z_endcap_wall = vessel_length/2.0 + flange_thick;
-        G4double lens_offset = 11.75*cm;
+        // Notebook-selected Lens-1 position: global z = 1082.095 mm.
+        G4double lens_offset = 17.6305*cm;
         G4double Lens_zpos = z_endcap_wall - (lens_offset + Lens_tc/2.0);
 
         G4RotationMatrix* Lens_rot = new G4RotationMatrix();
@@ -591,7 +621,12 @@ namespace nexus {
         // catch grazing photons without materially enlarging the mirror.
         G4double mirror_baffle_width = 1.*mm;
         G4double mirror_baffle_OD = Mirror_D + 2.*mirror_baffle_width;
-        G4double Mirror_zpos = Lens_zpos + (6.67*cm);
+        // Keep both mirror z positions fixed at their original global
+        // position while Lens 1 is allowed to move independently.
+        G4double original_lens_offset = 17.44*cm;
+        G4double Mirror_zpos = z_endcap_wall
+                             - (original_lens_offset + Lens_tc/2.0)
+                             + (6.67*cm);
 
         G4Tubs* Mirror_solid = new G4Tubs("MIRROR", 0., Mirror_D/2.0, Mirror_T/2.0, 0., twopi);
         G4LogicalVolume* Mirror_logic = new G4LogicalVolume(Mirror_solid, Steel, "MIRROR");
@@ -689,22 +724,20 @@ namespace nexus {
                                - image_intensifier_thick/2.0
                                - ii_score_thick/2.0;
 
-        G4double II_lens_from_image_intensifier = 68.405974*mm;
-        // Preserve the second-lens position used to produce the focal scan.
-        // It was originally tied to the old nominal II position, so deriving
-        // it from the newly focused detector would incorrectly move the lens.
-        G4double II_lens_nominal_II_plane_global = 1457.4*mm;
-        G4double II_lens_zpos = II_lens_nominal_II_plane_global - z_shift
-                              - II_lens_from_image_intensifier;
+        // Notebook-selected Lens-2 position: 215.3 mm downstream of Mirror 2.
+        // This is inside the II gas region and remains within +/-30 mm of the
+        // original Lens-2 position. The calculated focus is global z=1443 mm.
+        G4double II_lens_from_mirror2 = 215.3*mm;
+        G4double II_lens_zpos = Mirror2_zpos + II_lens_from_mirror2;
 
         G4RotationMatrix* II_Lens_rot = new G4RotationMatrix();
         II_Lens_rot->rotateY(180.0*deg);
 
         if (!direct_light_search_) {
-            new G4PVPlacement(II_Lens_rot, G4ThreeVector(II_xpos, II_ypos, II_lens_zpos), Lens_logic, "Image-Intensifier-FS-Lens", gas_logic, false, 1, true);
+            new G4PVPlacement(II_Lens_rot, G4ThreeVector(II_xpos, II_ypos, II_lens_zpos), Lens2_logic, "Image-Intensifier-FS-Lens", gas_logic, false, 1, true);
             new G4PVPlacement(II_Lens_rot,
                               G4ThreeVector(II_xpos, II_ypos, II_lens_zpos),
-                              lens_sleeve_logic, "FS_LENS2_SLEEVE",
+                              lens2_sleeve_logic, "FS_LENS2_SLEEVE",
                               gas_logic, false, 1, true);
         }
 
@@ -894,7 +927,7 @@ namespace nexus {
         PhotonScoreVa->SetForceLineSegmentsPerCircle(96);
 
         G4LogicalVolume* DirectScore =
-            lvStore->GetVolume("II_ONE_INCH_SCORE");
+            lvStore->GetVolume("II_ONE_INCH_SCORE", false);
         if (DirectScore) DirectScore->SetVisAttributes(PhotonScoreVa);
 
         G4LogicalVolume* PhotocathodeScore =
@@ -945,15 +978,20 @@ namespace nexus {
         fsVa->SetForceSolid(true);
         G4LogicalVolume* fsLV = lvStore->GetVolume("FS_LENS");
         if (fsLV) fsLV->SetVisAttributes(fsVa);
+        G4LogicalVolume* fsL2LV = lvStore->GetVolume("FS_LENS2");
+        if (fsL2LV) fsL2LV->SetVisAttributes(fsVa);
 
         // Bright yellow makes the 1 mm absorbing barrel sleeves easy to
-        // distinguish from the blue fused-silica lenses in geometry views.
+        // distinguish from the blue CaF2 lenses in geometry views.
         G4VisAttributes* LensSleeveVa =
             new G4VisAttributes(nexus::Yellow());
         LensSleeveVa->SetForceSolid(true);
         G4LogicalVolume* LensSleeve =
             lvStore->GetVolume("FS_LENS_SLEEVE");
         if (LensSleeve) LensSleeve->SetVisAttributes(LensSleeveVa);
+        G4LogicalVolume* Lens2Sleeve =
+            lvStore->GetVolume("FS_LENS2_SLEEVE");
+        if (Lens2Sleeve) Lens2Sleeve->SetVisAttributes(LensSleeveVa);
 
         G4VisAttributes* MirrorVa = new G4VisAttributes(nexus::Blue());
         MirrorVa->SetForceSolid(true);
