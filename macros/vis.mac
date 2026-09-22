@@ -29,8 +29,15 @@
 ### Zoom up/down of view
 #/vis/viewer/zoom 1.4
 
-### Create an empty scene and add the detector geometry
-/vis/drawVolume
+### Create an empty scene and add the detector geometry.
+#
+# The KingCRAB geometry contains thousands of repeated mesh/stave touchables.
+# Drawing the unlimited world hierarchy makes the Qt/OpenGL scene tree exceed
+# Geant4's touchable limit (and can leave the viewer blank).  Three levels are
+# enough to show the vessel, gas, rings, lenses, and image-intensifier while
+# keeping the interactive scene responsive; the full geometry remains active
+# for tracking and physics.
+/vis/drawVolume world -1 3
 
 ### Drawing the tracks (if chosen in user actions)
 # Parameter (omittable) (default=0):
