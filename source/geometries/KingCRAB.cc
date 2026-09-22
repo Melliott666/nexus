@@ -439,9 +439,8 @@ namespace nexus {
         // --------------------------
         // EL Mesh Placements
         // --------------------------
-        // Temporarily Disabled for Diagnostic Purposes
-        // new G4PVPlacement(0, G4ThreeVector(0., 0., z_anode_mesh), EL_grid_logic, "EL_MESH_ANODE", gas_logic, false, 0, false);
-        // new G4PVPlacement(pRot, G4ThreeVector(0., 0., z_gate_mesh), EL_grid_logic, "EL_MESH_GATE", gas_logic, false, 1, false);
+        new G4PVPlacement(0, G4ThreeVector(0., 0., z_anode_mesh), EL_grid_logic, "EL_MESH_ANODE", gas_logic, false, 0, false);
+        new G4PVPlacement(pRot, G4ThreeVector(0., 0., z_gate_mesh), EL_grid_logic, "EL_MESH_GATE", gas_logic, false, 1, false);
 
 
         // --------------------------
@@ -451,8 +450,8 @@ namespace nexus {
         G4LogicalVolume* anode_logic = new G4LogicalVolume(EL_solid, Steel, "ANODE_RING");
         G4LogicalVolume* EL_logic    = new G4LogicalVolume(EL_solid, Steel, "EL_RING");
 
-        // new G4PVPlacement(0, G4ThreeVector(0., 0., -el_gap/2.0 - mesh_thick/2. - EL_ring_thick/2.0 - z_shift), anode_logic, "ANODE_RING", gas_logic, false, 0, true);
-        // new G4PVPlacement(0, G4ThreeVector(0., 0., +el_gap/2.0 + mesh_thick/2. + EL_ring_thick/2.0 - z_shift), EL_logic, "EL_RING", gas_logic, false, 0, true);
+        new G4PVPlacement(0, G4ThreeVector(0., 0., -el_gap/2.0 - mesh_thick/2. - EL_ring_thick/2.0 - z_shift), anode_logic, "ANODE_RING", gas_logic, false, 0, true);
+        new G4PVPlacement(0, G4ThreeVector(0., 0., +el_gap/2.0 + mesh_thick/2. + EL_ring_thick/2.0 - z_shift), EL_logic, "EL_RING", gas_logic, false, 0, true);
         
         new G4LogicalSkinSurface("GAS_ANODE_OPSURF", anode_logic, gas_steel_opsur);
         new G4LogicalSkinSurface("GAS_EL_GATE_OPSURF", EL_logic, gas_steel_opsur);
@@ -464,7 +463,7 @@ namespace nexus {
         G4Tubs* cathode_solid = new G4Tubs("CATHODE_RING_SOLID", cathode_ring_ID/2., cathode_ring_OD/2., cathode_ring_thick/2. - mesh_thick/2., 0, twopi);
         G4LogicalVolume* cathode_logic = new G4LogicalVolume(cathode_solid, Steel, "CATHODE_RING");
 
-        // new G4PVPlacement(0, G4ThreeVector(0., 0., z_cathode_ring), cathode_logic, "CATHODE_RING", gas_logic, false, 0, true);
+        new G4PVPlacement(0, G4ThreeVector(0., 0., z_cathode_ring), cathode_logic, "CATHODE_RING", gas_logic, false, 0, true);
 
         G4int n_hex_cathode = (G4int)((cathode_ring_ID/2.0) / hex_circumradius);
 
@@ -475,7 +474,7 @@ namespace nexus {
 
         new G4LogicalSkinSurface("GAS_CATHODE_MESH_OPSURF", cathode_grid_logic, gas_steel_opsur);
 
-        // new G4PVPlacement(0, G4ThreeVector(0., 0., z_cathode_mesh), cathode_grid_logic, "CATHODE_MESH", gas_logic, false, 0, false);
+        new G4PVPlacement(0, G4ThreeVector(0., 0., z_cathode_mesh), cathode_grid_logic, "CATHODE_MESH", gas_logic, false, 0, false);
 
 
         // --------------------------
@@ -500,12 +499,12 @@ namespace nexus {
         G4double posz;
         G4double n_active_FR = 31;
 
-        // for (G4int i=0; i<n_active_FR; i++) {posz = field_ring_origin + i*active_ring_sep; new G4PVPlacement(0, G4ThreeVector(0., 0., posz), field_ring_logic, field_ring_logic->GetName(), gas_logic, false, i, true);}
+        for (G4int i=0; i<n_active_FR; i++) {posz = field_ring_origin + i*active_ring_sep; new G4PVPlacement(0, G4ThreeVector(0., 0., posz), field_ring_logic, field_ring_logic->GetName(), gas_logic, false, i, true);}
 
         G4double active_buffer_FR_dist = 72*mm;
         G4double buffer_ring_sep = 48*mm;
 
-        // for (G4int i=0; i<4; i++) {posz = field_ring_origin + 30*active_ring_sep + active_buffer_FR_dist + i*buffer_ring_sep; new G4PVPlacement(0, G4ThreeVector(0., 0., posz), field_ring_logic, "FIELD_RING", gas_logic, false, i+31, false);}
+        for (G4int i=0; i<4; i++) {posz = field_ring_origin + 30*active_ring_sep + active_buffer_FR_dist + i*buffer_ring_sep; new G4PVPlacement(0, G4ThreeVector(0., 0., posz), field_ring_logic, "FIELD_RING", gas_logic, false, i+31, false);}
 
         new G4LogicalSkinSurface("GAS_FIELDCAGE_OPSURF", field_ring_logic, gas_copper_opsur);
 
@@ -523,7 +522,7 @@ namespace nexus {
         G4Tubs*  Stave_solid = new G4Tubs("STAVES", Stave_ID/2.0, Stave_OD/2.0, Stave_length/2.0, 0, twopi);
         G4LogicalVolume* Stave_logic = new G4LogicalVolume(Stave_solid, PTFE, "STAVES");
 
-        // for (G4int i=0; i<n_Staves; i++) {G4double phi = i*twopi/n_Staves; G4double xt = Stave_rpos*std::cos(phi); G4double yt = Stave_rpos*std::sin(phi); new G4PVPlacement(0, G4ThreeVector(xt, yt, Stave_zpos), Stave_logic, Stave_solid->GetName(), gas_logic, false, i, true);}
+        for (G4int i=0; i<n_Staves; i++) {G4double phi = i*twopi/n_Staves; G4double xt = Stave_rpos*std::cos(phi); G4double yt = Stave_rpos*std::sin(phi); new G4PVPlacement(0, G4ThreeVector(xt, yt, Stave_zpos), Stave_logic, Stave_solid->GetName(), gas_logic, false, i, true);}
 
 
         // --------------------------
